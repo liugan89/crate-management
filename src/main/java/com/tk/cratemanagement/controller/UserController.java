@@ -4,6 +4,7 @@ import com.tk.cratemanagement.dto.CreateUserRequestDTO;
 import com.tk.cratemanagement.dto.ResetPasswordRequestDTO;
 import com.tk.cratemanagement.dto.UpdateUserRequestDTO;
 import com.tk.cratemanagement.dto.UserDTO;
+import com.tk.cratemanagement.security.SecurityUtils;
 import com.tk.cratemanagement.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,9 +39,9 @@ public class UserController {
      */
     @PostMapping
     @Operation(summary = "创建用户", description = "在当前租户内创建新用户")
-    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody CreateUserRequestDTO request,
-                                            Authentication authentication) {
-        Long tenantId = getTenantIdFromAuth(authentication);
+    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody CreateUserRequestDTO request) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new IllegalStateException("无法获取当前租户ID"));
         log.info("收到创建用户请求: email={}, tenantId={}", request.email(), tenantId);
         
         UserDTO response = userService.createUser(request, tenantId);
@@ -55,8 +55,9 @@ public class UserController {
      */
     @GetMapping
     @Operation(summary = "获取用户列表", description = "获取当前租户内所有用户")
-    public ResponseEntity<List<UserDTO>> getAllUsers(Authentication authentication) {
-        Long tenantId = getTenantIdFromAuth(authentication);
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new IllegalStateException("无法获取当前租户ID"));
         log.debug("获取用户列表: tenantId={}", tenantId);
         
         List<UserDTO> users = userService.getAllUsers(tenantId);
@@ -69,9 +70,9 @@ public class UserController {
      */
     @GetMapping("/{userId}")
     @Operation(summary = "获取用户详情", description = "获取指定用户的详细信息")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable Long userId,
-                                             Authentication authentication) {
-        Long tenantId = getTenantIdFromAuth(authentication);
+    public ResponseEntity<UserDTO> getUserById(@PathVariable Long userId) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new IllegalStateException("无法获取当前租户ID"));
         log.debug("获取用户详情: userId={}, tenantId={}", userId, tenantId);
         
         UserDTO user = userService.getUserById(userId, tenantId);
@@ -85,9 +86,9 @@ public class UserController {
     @PutMapping("/{userId}")
     @Operation(summary = "更新用户信息", description = "更新用户的角色和状态")
     public ResponseEntity<UserDTO> updateUser(@PathVariable Long userId,
-                                            @Valid @RequestBody UpdateUserRequestDTO request,
-                                            Authentication authentication) {
-        Long tenantId = getTenantIdFromAuth(authentication);
+                                            @Valid @RequestBody UpdateUserRequestDTO request) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new IllegalStateException("无法获取当前租户ID"));
         log.info("收到更新用户请求: userId={}, tenantId={}", userId, tenantId);
         
         UserDTO response = userService.updateUser(userId, request, tenantId);
@@ -101,9 +102,9 @@ public class UserController {
      */
     @DeleteMapping("/{userId}")
     @Operation(summary = "删除用户", description = "从当前租户中删除用户")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long userId,
-                                         Authentication authentication) {
-        Long tenantId = getTenantIdFromAuth(authentication);
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new IllegalStateException("无法获取当前租户ID"));
         log.info("收到删除用户请求: userId={}, tenantId={}", userId, tenantId);
         
         userService.deleteUser(userId, tenantId);
@@ -118,23 +119,14 @@ public class UserController {
     @PutMapping("/{userId}/reset-password")
     @Operation(summary = "重置用户密码", description = "重置指定用户的密码")
     public ResponseEntity<Void> resetPassword(@PathVariable Long userId,
-                                            @Valid @RequestBody ResetPasswordRequestDTO request,
-                                            Authentication authentication) {
-        Long tenantId = getTenantIdFromAuth(authentication);
+                                            @Valid @RequestBody ResetPasswordRequestDTO request) {
+        Long tenantId = SecurityUtils.getCurrentTenantId()
+                .orElseThrow(() -> new IllegalStateException("无法获取当前租户ID"));
         log.info("收到重置密码请求: userId={}, tenantId={}", userId, tenantId);
         
         userService.resetPassword(userId, request, tenantId);
         
         log.info("用户密码重置成功: userId={}", userId);
         return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * 从认证信息中提取租户ID
-     */
-    private Long getTenantIdFromAuth(Authentication authentication) {
-        // TODO: 从JWT token中提取租户ID
-        // 这里需要实现从Authentication对象中获取租户ID的逻辑
-        return 1L; // 临时返回
     }
 }

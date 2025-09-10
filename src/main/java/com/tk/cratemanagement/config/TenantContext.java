@@ -16,10 +16,24 @@ public class TenantContext {
     }
     
     /**
+     * 设置当前租户ID (别名方法)
+     */
+    public static void setCurrentTenantId(Long tenantId) {
+        setCurrentTenant(tenantId);
+    }
+    
+    /**
      * 获取当前租户ID
      */
     public static Long getCurrentTenant() {
         return currentTenant.get();
+    }
+    
+    /**
+     * 获取当前租户ID (别名方法)
+     */
+    public static Long getCurrentTenantId() {
+        return getCurrentTenant();
     }
     
     /**

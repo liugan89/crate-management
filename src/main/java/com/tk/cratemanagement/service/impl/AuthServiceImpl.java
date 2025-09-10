@@ -14,11 +14,16 @@ import com.tk.cratemanagement.repository.PlanRepository;
 import com.tk.cratemanagement.repository.SubscriptionRepository;
 import com.tk.cratemanagement.repository.TenantRepository;
 import com.tk.cratemanagement.repository.UserRepository;
+import com.tk.cratemanagement.security.CustomUserDetailsService;
 import com.tk.cratemanagement.service.AuthService;
 import com.tk.cratemanagement.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +47,7 @@ public class AuthServiceImpl implements AuthService {
     private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final CustomUserDetailsService userDetailsService;
 
     /**
      * 注册新租户和管理员用户
@@ -102,36 +108,37 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponseDTO login(LoginRequestDTO request) {
         log.info("用户登录尝试: {}", request.email());
 
-        // 查找用户（这里需要跨租户查找，因为登录时不知道租户ID）
-        Optional<User> userOpt = userRepository.findByEmail(request.email());
-        if (userOpt.isEmpty()) {
+        try {
+            // 使用UserDetailsService加载用户并验证凭据
+            UserDetails userDetails = userDetailsService.loadUserByEmail(request.email());
+            
+            // 验证密码
+            if (!passwordEncoder.matches(request.password(), userDetails.getPassword())) {
+                throw new BadCredentialsException("用户名或密码错误");
+            }
+
+            // 获取用户信息用于生成token
+            Long userId = Long.parseLong(userDetails.getUsername());
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalStateException("用户不存在"));
+
+            // 检查租户状态
+            Tenant tenant = tenantRepository.findById(user.getTenantId())
+                    .orElseThrow(() -> new IllegalStateException("租户不存在"));
+
+            if (tenant.getStatus() == TenantStatus.SUSPENDED) {
+                throw new BadCredentialsException("租户账户已被暂停");
+            }
+
+            // 生成JWT token
+            String token = jwtService.generateToken(user.getId(), user.getTenantId(), user.getRole());
+
+            log.info("用户登录成功: userId={}, tenantId={}", user.getId(), user.getTenantId());
+            return new AuthResponseDTO(token);
+            
+        } catch (Exception e) {
+            log.warn("用户登录失败: {}, 原因: {}", request.email(), e.getMessage());
             throw new BadCredentialsException("用户名或密码错误");
         }
-
-        User user = userOpt.get();
-
-        // 验证密码
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new BadCredentialsException("用户名或密码错误");
-        }
-
-        // 检查用户是否激活
-        if (!user.isActive()) {
-            throw new BadCredentialsException("用户账户已被禁用");
-        }
-
-        // 检查租户状态
-        Tenant tenant = tenantRepository.findById(user.getTenantId())
-                .orElseThrow(() -> new IllegalStateException("租户不存在"));
-
-        if (tenant.getStatus() == TenantStatus.SUSPENDED) {
-            throw new BadCredentialsException("租户账户已被暂停");
-        }
-
-        // 生成JWT token
-        String token = jwtService.generateToken(user.getId(), user.getTenantId(), user.getRole());
-
-        log.info("用户登录成功: userId={}, tenantId={}", user.getId(), user.getTenantId());
-        return new AuthResponseDTO(token);
     }
 }

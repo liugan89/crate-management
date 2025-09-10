@@ -30,8 +30,20 @@ public class JwtServiceImpl implements JwtService {
 
     public JwtServiceImpl(@Value("${app.jwt.secret:mySecretKey}") String secret,
                          @Value("${app.jwt.expiration-hours:24}") long jwtExpirationInHours) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
+        // 确保密钥长度至少256位
+        byte[] keyBytes = secret.getBytes();
+        if (keyBytes.length < 32) {
+            // 如果密钥太短，重复填充到32字节
+            byte[] paddedKey = new byte[32];
+            for (int i = 0; i < 32; i++) {
+                paddedKey[i] = keyBytes[i % keyBytes.length];
+            }
+            this.secretKey = Keys.hmacShaKeyFor(paddedKey);
+        } else {
+            this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+        }
         this.jwtExpirationInHours = jwtExpirationInHours;
+        log.info("JWT服务初始化完成，密钥长度: {} 位", this.secretKey.getEncoded().length * 8);
     }
 
     @Override
