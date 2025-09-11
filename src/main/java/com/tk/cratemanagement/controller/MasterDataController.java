@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -105,6 +106,25 @@ public class MasterDataController {
         
         log.info("货物删除成功: goodsId={}", id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 上传商品图片
+     */
+    @PostMapping("/goods/{id}/image")
+    @Operation(summary = "上传商品图片", description = "为指定商品上传图片")
+    public ResponseEntity<String> uploadGoodsImage(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        Long tenantId = getTenantIdFromAuth(authentication);
+        log.info("收到上传商品图片请求: goodsId={}, tenantId={}, fileName={}", 
+                id, tenantId, file.getOriginalFilename());
+        
+        String imageUrl = masterDataService.uploadGoodsImage(file, id, tenantId);
+        
+        log.info("商品图片上传成功: goodsId={}, imageUrl={}", id, imageUrl);
+        return ResponseEntity.ok(imageUrl);
     }
 
     // ========== 供应商管理 ==========
@@ -271,7 +291,7 @@ public class MasterDataController {
      * 从认证信息中提取租户ID
      */
     private Long getTenantIdFromAuth(Authentication authentication) {
-        // TODO: 从JWT token中提取租户ID
-        return 1L; // 临时返回
+        // 使用AuthUtils工具类从认证信息中提取租户ID
+        return com.tk.cratemanagement.util.AuthUtils.getTenantIdFromAuth(authentication);
     }
 }

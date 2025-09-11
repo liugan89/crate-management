@@ -4,8 +4,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record RegisterRequestDTO(
-        // 公司基本信息
+/**
+ * DTO for updating Tenant information
+ */
+public record TenantUpdateDTO(
         @NotBlank(message = "公司名称不能为空")
         @Size(max = 255, message = "公司名称长度不能超过255个字符")
         String companyName,
@@ -33,21 +35,5 @@ public record RegisterRequestDTO(
         String country,
         
         @Size(max = 50, message = "时区长度不能超过50个字符")
-        String timezone,
-        
-        // 管理员用户信息
-        @Email(message = "请输入有效的邮箱地址")
-        @NotBlank(message = "管理员邮箱不能为空")
-        @Size(max = 255, message = "管理员邮箱长度不能超过255个字符")
-        String email,
-        
-        @NotBlank(message = "密码不能为空")
-        @Size(min = 8, message = "密码长度不能少于8个字符")
-        String password,
-        
-        @Size(max = 255, message = "管理员姓名长度不能超过255个字符")
-        String fullName,
-        
-        @Size(max = 50, message = "管理员手机号长度不能超过50个字符")
-        String phone
+        String timezone
 ) {}

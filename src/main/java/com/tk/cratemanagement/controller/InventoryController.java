@@ -81,7 +81,7 @@ public class InventoryController {
      * 从认证信息中提取租户ID
      */
     private Long getTenantIdFromAuth(Authentication authentication) {
-        // TODO: 从JWT token中提取租户ID
-        return 1L; // 临时返回
+        // 使用AuthUtils工具类从认证信息中提取租户ID
+        return com.tk.cratemanagement.util.AuthUtils.getTenantIdFromAuth(authentication);
     }
 }

@@ -1,23 +1,39 @@
 spring:
+  profiles:
+    # 默认激活dev profile。当打包部署时，我们会通过其他方式覆盖它。
+    active: dev
+
   application:
     name: crate-management
   
   # 数据库配置
   datasource:
-    url: jdbc:postgresql://localhost:5432/crate_management
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:password}
+    url: jdbc:postgresql://localhost:5432/crate_management_db?useSSL=false
+    username: postgres
+    password: my!69.77o08891
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+      auto-commit: false
   
   # JPA配置
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # 连接池配置
+        connection:
+          provider_disables_autocommit: true
         # Envers审计配置
         envers:
           audit_table_suffix: _aud
@@ -30,11 +46,27 @@ spring:
       name: admin
       password: admin
 
+  # Spring Boot文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+      enabled: true
+
 # JWT配置
 app:
   jwt:
     secret: ${JWT_SECRET:myVerySecretKeyThatIsAtLeast256BitsLongForHS256Algorithm}
     expiration-hours: ${JWT_EXPIRATION_HOURS:24}
+
+  # 文件上传配置
+  file-upload:
+    image-base-path: ${FILE_UPLOAD_PATH:/home/ubuntu/app/server/images}
+    goods-image-path: goods
+    allowed-image-types: jpg,jpeg,png,gif,webp
+    max-file-size: 10
+    image-quality: 85
+    thumbnail-size: 200
 
 # 日志配置
 logging:

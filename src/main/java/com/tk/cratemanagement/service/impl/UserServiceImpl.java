@@ -42,6 +42,8 @@ public class UserServiceImpl implements UserService {
         user.setTenantId(tenantId);
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.initialPassword()));
+        user.setFullName(request.fullName());
+        user.setPhone(request.phone());
         user.setRole(request.role());
         user.setActive(true);
 
@@ -81,6 +83,12 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
 
+        if (request.fullName() != null) {
+            user.setFullName(request.fullName());
+        }
+        if (request.phone() != null) {
+            user.setPhone(request.phone());
+        }
         if (request.role() != null) {
             user.setRole(request.role());
         }
@@ -97,13 +105,17 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteUser(Long userId, Long tenantId) {
-        log.info("删除用户: userId={}, tenantId={}", userId, tenantId);
+        log.info("软删除用户: userId={}, tenantId={}", userId, tenantId);
         
         User user = userRepository.findByIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
 
-        userRepository.delete(user);
-        log.info("用户删除成功: userId={}", userId);
+        // 软删除：设置deleted_at时间戳
+        user.setDeletedAt(java.time.LocalDateTime.now());
+        user.setUpdatedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+        
+        log.info("用户软删除成功: userId={}", userId);
     }
 
     @Override
@@ -124,8 +136,14 @@ public class UserServiceImpl implements UserService {
         return new UserDTO(
                 user.getId(),
                 user.getEmail(),
+                user.getFullName(),
+                user.getPhone(),
+                user.getAvatarUrl(),
                 user.getRole(),
-                user.isActive()
+                user.isActive(),
+                user.getLastLoginAt(),
+                user.getCreatedAt(),
+                user.getUpdatedAt()
         );
     }
 }

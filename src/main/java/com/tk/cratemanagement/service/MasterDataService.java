@@ -1,6 +1,7 @@
 package com.tk.cratemanagement.service;
 
 import com.tk.cratemanagement.dto.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -49,12 +50,22 @@ public interface MasterDataService {
     GoodsDTO updateGoods(Long goodsId, GoodsRequestDTO request, Long tenantId);
 
     /**
-     * 删除货物
+     * 删除货物（软删除）
      *
      * @param goodsId 货物ID
      * @param tenantId 租户ID
      */
     void deleteGoods(Long goodsId, Long tenantId);
+
+    /**
+     * 上传商品图片
+     *
+     * @param file 图片文件
+     * @param goodsId 商品ID
+     * @param tenantId 租户ID
+     * @return 图片URL
+     */
+    String uploadGoodsImage(MultipartFile file, Long goodsId, Long tenantId);
 
     // ========== 供应商管理 ==========
     

@@ -48,9 +48,18 @@ public class CrateContent {
     @Column(nullable = false)
     private CrateContentStatus status;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_id")
+    private Location location;
+
     @Column(name = "last_updated_at", nullable = false)
     private Instant lastUpdatedAt;
 
-    @Column(name = "last_updated_by_order_id")
-    private Long lastUpdatedByOrderId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_updated_by_order_id")
+    private ShipmentOrder lastUpdatedByOrder;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_updated_by_user_id")
+    private User lastUpdatedByUser;
 }

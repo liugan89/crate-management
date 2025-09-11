@@ -2,6 +2,8 @@ package com.tk.cratemanagement.repository;
 
 import com.tk.cratemanagement.domain.Supplier;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,12 +16,26 @@ import java.util.Optional;
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     
     /**
-     * 根据租户ID查找所有供应商
+     * 根据租户ID查找所有供应商（排除软删除）
      */
-    List<Supplier> findByTenantId(Long tenantId);
+    @Query("SELECT s FROM Supplier s WHERE s.tenantId = :tenantId AND s.deletedAt IS NULL")
+    List<Supplier> findByTenantId(@Param("tenantId") Long tenantId);
     
     /**
-     * 根据供应商ID和租户ID查找供应商
+     * 根据供应商ID和租户ID查找供应商（排除软删除）
      */
-    Optional<Supplier> findByIdAndTenantId(Long id, Long tenantId);
+    @Query("SELECT s FROM Supplier s WHERE s.id = :id AND s.tenantId = :tenantId AND s.deletedAt IS NULL")
+    Optional<Supplier> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+    
+    /**
+     * 根据租户ID和供应商名称查找供应商（排除软删除）
+     */
+    @Query("SELECT s FROM Supplier s WHERE s.tenantId = :tenantId AND s.name = :name AND s.deletedAt IS NULL")
+    Optional<Supplier> findByTenantIdAndName(@Param("tenantId") Long tenantId, @Param("name") String name);
+    
+    /**
+     * 根据租户ID和供应商编码查找供应商（排除软删除）
+     */
+    @Query("SELECT s FROM Supplier s WHERE s.tenantId = :tenantId AND s.code = :code AND s.deletedAt IS NULL")
+    Optional<Supplier> findByTenantIdAndCode(@Param("tenantId") Long tenantId, @Param("code") String code);
 }

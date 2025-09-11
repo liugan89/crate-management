@@ -31,7 +31,36 @@ public class AuthController {
      * 公开接口，用于创建租户、ADMIN角色用户和14天试用订阅
      */
     @PostMapping("/register")
-    @Operation(summary = "租户注册", description = "注册新租户和管理员用户")
+    @Operation(
+        summary = "租户注册", 
+        description = "注册新租户和管理员用户。创建租户时会同时创建管理员账户和14天试用订阅。",
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "注册请求信息，包含完整的公司信息和管理员账户信息",
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                mediaType = "application/json",
+                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                    name = "注册示例",
+                    value = """
+                    {
+                        "companyName": "示例科技有限公司",
+                        "contactEmail": "contact@example.com",
+                        "phoneNumber": "+86-400-123-4567",
+                        "address": "北京市朝阳区示例大厦1001室",
+                        "city": "北京",
+                        "state": "北京市",
+                        "zipCode": "100000",
+                        "country": "CN",
+                        "timezone": "Asia/Shanghai",
+                        "email": "admin@example.com",
+                        "password": "SecurePassword123",
+                        "fullName": "张三",
+                        "phone": "+86-138-0013-8000"
+                    }
+                    """
+                )
+            )
+        )
+    )
     public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
         log.info("收到租户注册请求: companyName={}, email={}", request.companyName(), request.email());
         

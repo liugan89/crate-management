@@ -19,10 +19,7 @@ import com.tk.cratemanagement.service.AuthService;
 import com.tk.cratemanagement.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 
 /**
  * 认证服务实现类
@@ -63,12 +59,39 @@ public class AuthServiceImpl implements AuthService {
 
         // 检查邮箱是否已存在（跨租户检查）
         if (userRepository.findByEmail(request.email()).isPresent()) {
-            throw new IllegalArgumentException("邮箱已被使用");
+            throw new IllegalArgumentException("管理员邮箱已被使用");
+        }
+        
+        // 检查公司名称是否已存在
+        if (tenantRepository.findByCompanyName(request.companyName()).isPresent()) {
+            throw new IllegalArgumentException("公司名称已被使用");
+        }
+        
+        // 检查联系邮箱是否已存在（如果提供了的话）
+        if (request.contactEmail() != null && !request.contactEmail().trim().isEmpty()) {
+            if (tenantRepository.findByContactEmail(request.contactEmail()).isPresent()) {
+                throw new IllegalArgumentException("联系邮箱已被使用");
+            }
         }
 
         // 1. 创建租户
         Tenant tenant = new Tenant();
         tenant.setCompanyName(request.companyName());
+        tenant.setContactEmail(request.contactEmail());
+        tenant.setPhoneNumber(request.phoneNumber());
+        tenant.setAddress(request.address());
+        tenant.setCity(request.city());
+        tenant.setState(request.state());
+        tenant.setZipCode(request.zipCode());
+        
+        // 设置国家和时区，如果未提供则使用默认值
+        if (request.country() != null && !request.country().trim().isEmpty()) {
+            tenant.setCountry(request.country());
+        }
+        if (request.timezone() != null && !request.timezone().trim().isEmpty()) {
+            tenant.setTimezone(request.timezone());
+        }
+        
         // status和createdAt字段都有默认值，无需手动设置
         tenant = tenantRepository.save(tenant);
 
@@ -77,6 +100,8 @@ public class AuthServiceImpl implements AuthService {
         adminUser.setTenantId(tenant.getId());
         adminUser.setEmail(request.email());
         adminUser.setPasswordHash(passwordEncoder.encode(request.password()));
+        adminUser.setFullName(request.fullName());
+        adminUser.setPhone(request.phone());
         adminUser.setRole(UserRole.ADMIN);
         // isActive字段有默认值true，无需手动设置
         adminUser = userRepository.save(adminUser);
@@ -96,7 +121,7 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtService.generateToken(adminUser.getId(), tenant.getId(), adminUser.getRole());
 
         log.info("租户注册成功: tenantId={}, userId={}", tenant.getId(), adminUser.getId());
-        return new AuthResponseDTO(token);
+        return new AuthResponseDTO(tenant.getId(), token);
     }
 
     /**
@@ -134,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
             String token = jwtService.generateToken(user.getId(), user.getTenantId(), user.getRole());
 
             log.info("用户登录成功: userId={}, tenantId={}", user.getId(), user.getTenantId());
-            return new AuthResponseDTO(token);
+            return new AuthResponseDTO(user.getTenantId(), token);
             
         } catch (Exception e) {
             log.warn("用户登录失败: {}, 原因: {}", request.email(), e.getMessage());

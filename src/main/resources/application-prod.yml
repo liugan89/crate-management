@@ -1,0 +1,13 @@
+app:
+  file-upload:
+    # 使用您服务器的路径
+    image-base-path: /home/ubuntu/app/server/images
+
+spring:
+  # 生产环境通常关闭详细的SQL日志以提高性能
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.tk.cratemanagement: INFO # 生产环境日志级别通常是 INFO

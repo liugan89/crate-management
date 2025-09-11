@@ -8,11 +8,16 @@ import com.tk.cratemanagement.repository.GoodsRepository;
 import com.tk.cratemanagement.repository.LocationRepository;
 import com.tk.cratemanagement.repository.SupplierRepository;
 import com.tk.cratemanagement.service.MasterDataService;
+import com.tk.cratemanagement.util.FileUploadUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +33,7 @@ public class MasterDataServiceImpl implements MasterDataService {
     private final GoodsRepository goodsRepository;
     private final SupplierRepository supplierRepository;
     private final LocationRepository locationRepository;
+    private final FileUploadUtil fileUploadUtil;
 
     // ========== 货物管理实现 ==========
 
@@ -45,6 +51,15 @@ public class MasterDataServiceImpl implements MasterDataService {
         goods.setTenantId(tenantId);
         goods.setName(request.name());
         goods.setSku(request.sku());
+        goods.setBarcode(request.barcode());
+        goods.setUnit(request.unit());
+        goods.setCategory(request.category());
+        goods.setImageUrl(request.imageUrl());
+        goods.setDescription(request.description());
+        goods.setCustomFields(request.customFields());
+        goods.setIsActive(request.isActive() != null ? request.isActive() : true);
+        goods.setCreatedAt(Instant.now());
+        goods.setUpdatedAt(Instant.now());
 
         goods = goodsRepository.save(goods);
         log.info("货物创建成功: goodsId={}", goods.getId());
@@ -89,8 +104,25 @@ public class MasterDataServiceImpl implements MasterDataService {
             }
         }
 
+        // 如果图片URL发生变化，删除旧图片
+        if (request.imageUrl() != null && !request.imageUrl().equals(goods.getImageUrl())) {
+            if (goods.getImageUrl() != null) {
+                fileUploadUtil.deleteGoodsImage(goods.getImageUrl(), tenantId);
+            }
+        }
+
         goods.setName(request.name());
         goods.setSku(request.sku());
+        goods.setBarcode(request.barcode());
+        goods.setUnit(request.unit());
+        goods.setCategory(request.category());
+        goods.setImageUrl(request.imageUrl());
+        goods.setDescription(request.description());
+        goods.setCustomFields(request.customFields());
+        if (request.isActive() != null) {
+            goods.setIsActive(request.isActive());
+        }
+        goods.setUpdatedAt(Instant.now());
 
         goods = goodsRepository.save(goods);
         log.info("货物信息更新成功: goodsId={}", goods.getId());
@@ -101,13 +133,54 @@ public class MasterDataServiceImpl implements MasterDataService {
     @Override
     @Transactional
     public void deleteGoods(Long goodsId, Long tenantId) {
-        log.info("删除货物: goodsId={}, tenantId={}", goodsId, tenantId);
+        log.info("软删除货物: goodsId={}, tenantId={}", goodsId, tenantId);
         
         Goods goods = goodsRepository.findByIdAndTenantId(goodsId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("货物不存在"));
 
-        goodsRepository.delete(goods);
-        log.info("货物删除成功: goodsId={}", goodsId);
+        // 软删除：设置deleted_at时间戳
+        goods.setDeletedAt(Instant.now());
+        goods.setUpdatedAt(Instant.now());
+        
+        // 删除关联的图片文件
+        if (goods.getImageUrl() != null) {
+            fileUploadUtil.deleteGoodsImage(goods.getImageUrl(), tenantId);
+        }
+        
+        goodsRepository.save(goods);
+        log.info("货物软删除成功: goodsId={}", goodsId);
+    }
+
+    @Override
+    @Transactional
+    public String uploadGoodsImage(MultipartFile file, Long goodsId, Long tenantId) {
+        log.info("上传商品图片: goodsId={}, tenantId={}, fileName={}", goodsId, tenantId, file.getOriginalFilename());
+        
+        // 验证商品是否存在
+        Goods goods = goodsRepository.findByIdAndTenantId(goodsId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("商品不存在"));
+        
+        try {
+            // 上传图片文件
+            String imageUrl = fileUploadUtil.uploadGoodsImage(file, tenantId, goodsId);
+            
+            // 如果商品已有图片，删除旧图片
+            if (goods.getImageUrl() != null) {
+                fileUploadUtil.deleteGoodsImage(goods.getImageUrl(), tenantId);
+            }
+            
+            // 更新商品的图片URL
+            goods.setImageUrl(imageUrl);
+            goods.setUpdatedAt(Instant.now());
+            goodsRepository.save(goods);
+            
+            log.info("商品图片上传成功: goodsId={}, imageUrl={}", goodsId, imageUrl);
+            return imageUrl;
+            
+        } catch (IOException e) {
+            log.error("商品图片上传失败: goodsId={}, tenantId={}", goodsId, tenantId, e);
+            throw new RuntimeException("图片上传失败: " + e.getMessage(), e);
+        }
     }
 
     // ========== 供应商管理实现 ==========
@@ -117,9 +190,29 @@ public class MasterDataServiceImpl implements MasterDataService {
     public SupplierDTO createSupplier(SupplierRequestDTO request, Long tenantId) {
         log.info("创建供应商: name={}, tenantId={}", request.name(), tenantId);
 
+        // 检查供应商名称在租户内是否已存在
+        if (supplierRepository.findByTenantIdAndName(tenantId, request.name()).isPresent()) {
+            throw new IllegalArgumentException("供应商名称在当前租户内已存在: " + request.name());
+        }
+
+        // 检查供应商编码在租户内是否已存在
+        if (request.code() != null && supplierRepository.findByTenantIdAndCode(tenantId, request.code()).isPresent()) {
+            throw new IllegalArgumentException("供应商编码在当前租户内已存在: " + request.code());
+        }
+
         Supplier supplier = new Supplier();
         supplier.setTenantId(tenantId);
         supplier.setName(request.name());
+        supplier.setCode(request.code());
+        supplier.setContactName(request.contactName());
+        supplier.setContactEmail(request.contactEmail());
+        supplier.setContactPhone(request.contactPhone());
+        supplier.setAddress(request.address());
+        supplier.setCity(request.city());
+        supplier.setState(request.state());
+        supplier.setZipCode(request.zipCode());
+        supplier.setCountry(request.country() != null ? request.country() : "CN");
+        supplier.setIsActive(request.isActive() != null ? request.isActive() : true);
 
         supplier = supplierRepository.save(supplier);
         log.info("供应商创建成功: supplierId={}", supplier.getId());
@@ -157,7 +250,33 @@ public class MasterDataServiceImpl implements MasterDataService {
         Supplier supplier = supplierRepository.findByIdAndTenantId(supplierId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("供应商不存在"));
 
+        // 检查名称冲突
+        if (!request.name().equals(supplier.getName())) {
+            if (supplierRepository.findByTenantIdAndName(tenantId, request.name()).isPresent()) {
+                throw new IllegalArgumentException("供应商名称在当前租户内已存在: " + request.name());
+            }
+        }
+
+        // 检查编码冲突
+        if (request.code() != null && !request.code().equals(supplier.getCode())) {
+            if (supplierRepository.findByTenantIdAndCode(tenantId, request.code()).isPresent()) {
+                throw new IllegalArgumentException("供应商编码在当前租户内已存在: " + request.code());
+            }
+        }
+
         supplier.setName(request.name());
+        supplier.setCode(request.code());
+        supplier.setContactName(request.contactName());
+        supplier.setContactEmail(request.contactEmail());
+        supplier.setContactPhone(request.contactPhone());
+        supplier.setAddress(request.address());
+        supplier.setCity(request.city());
+        supplier.setState(request.state());
+        supplier.setZipCode(request.zipCode());
+        supplier.setCountry(request.country() != null ? request.country() : "CN");
+        if (request.isActive() != null) {
+            supplier.setIsActive(request.isActive());
+        }
 
         supplier = supplierRepository.save(supplier);
         log.info("供应商信息更新成功: supplierId={}", supplier.getId());
@@ -168,13 +287,17 @@ public class MasterDataServiceImpl implements MasterDataService {
     @Override
     @Transactional
     public void deleteSupplier(Long supplierId, Long tenantId) {
-        log.info("删除供应商: supplierId={}, tenantId={}", supplierId, tenantId);
+        log.info("软删除供应商: supplierId={}, tenantId={}", supplierId, tenantId);
         
         Supplier supplier = supplierRepository.findByIdAndTenantId(supplierId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("供应商不存在"));
 
-        supplierRepository.delete(supplier);
-        log.info("供应商删除成功: supplierId={}", supplierId);
+        // 软删除：设置deleted_at时间戳
+        supplier.setDeletedAt(java.time.LocalDateTime.now());
+        supplier.setUpdatedAt(java.time.LocalDateTime.now());
+        supplierRepository.save(supplier);
+        
+        log.info("供应商软删除成功: supplierId={}", supplierId);
     }
 
     // ========== 库位管理实现 ==========
@@ -184,9 +307,23 @@ public class MasterDataServiceImpl implements MasterDataService {
     public LocationDTO createLocation(LocationRequestDTO request, Long tenantId) {
         log.info("创建库位: name={}, tenantId={}", request.name(), tenantId);
 
+        // 检查库位名称在租户内是否已存在
+        if (locationRepository.findByTenantIdAndName(tenantId, request.name()).isPresent()) {
+            throw new IllegalArgumentException("库位名称在当前租户内已存在: " + request.name());
+        }
+
+        // 检查库位编码在租户内是否已存在
+        if (request.code() != null && locationRepository.findByTenantIdAndCode(tenantId, request.code()).isPresent()) {
+            throw new IllegalArgumentException("库位编码在当前租户内已存在: " + request.code());
+        }
+
         Location location = new Location();
         location.setTenantId(tenantId);
         location.setName(request.name());
+        location.setCode(request.code());
+        location.setDescription(request.description());
+        location.setZone(request.zone());
+        location.setIsActive(request.isActive() != null ? request.isActive() : true);
 
         location = locationRepository.save(location);
         log.info("库位创建成功: locationId={}", location.getId());
@@ -224,7 +361,27 @@ public class MasterDataServiceImpl implements MasterDataService {
         Location location = locationRepository.findByIdAndTenantId(locationId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("库位不存在"));
 
+        // 检查名称冲突
+        if (!request.name().equals(location.getName())) {
+            if (locationRepository.findByTenantIdAndName(tenantId, request.name()).isPresent()) {
+                throw new IllegalArgumentException("库位名称在当前租户内已存在: " + request.name());
+            }
+        }
+
+        // 检查编码冲突
+        if (request.code() != null && !request.code().equals(location.getCode())) {
+            if (locationRepository.findByTenantIdAndCode(tenantId, request.code()).isPresent()) {
+                throw new IllegalArgumentException("库位编码在当前租户内已存在: " + request.code());
+            }
+        }
+
         location.setName(request.name());
+        location.setCode(request.code());
+        location.setDescription(request.description());
+        location.setZone(request.zone());
+        if (request.isActive() != null) {
+            location.setIsActive(request.isActive());
+        }
 
         location = locationRepository.save(location);
         log.info("库位信息更新成功: locationId={}", location.getId());
@@ -235,13 +392,17 @@ public class MasterDataServiceImpl implements MasterDataService {
     @Override
     @Transactional
     public void deleteLocation(Long locationId, Long tenantId) {
-        log.info("删除库位: locationId={}, tenantId={}", locationId, tenantId);
+        log.info("软删除库位: locationId={}, tenantId={}", locationId, tenantId);
         
         Location location = locationRepository.findByIdAndTenantId(locationId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("库位不存在"));
 
-        locationRepository.delete(location);
-        log.info("库位删除成功: locationId={}", locationId);
+        // 软删除：设置deleted_at时间戳
+        location.setDeletedAt(java.time.LocalDateTime.now());
+        location.setUpdatedAt(java.time.LocalDateTime.now());
+        locationRepository.save(location);
+        
+        log.info("库位软删除成功: locationId={}", locationId);
     }
 
     // ========== DTO转换方法 ==========
@@ -251,7 +412,15 @@ public class MasterDataServiceImpl implements MasterDataService {
                 goods.getId(),
                 goods.getName(),
                 goods.getSku(),
-                null // description字段暂时设为null，需要在Goods实体中添加
+                goods.getBarcode(),
+                goods.getUnit(),
+                goods.getCategory(),
+                goods.getImageUrl(),
+                goods.getDescription(),
+                goods.getCustomFields(),
+                goods.getIsActive(),
+                goods.getCreatedAt() != null ? goods.getCreatedAt().atZone(ZoneId.systemDefault()) : null,
+                goods.getUpdatedAt() != null ? goods.getUpdatedAt().atZone(ZoneId.systemDefault()) : null
         );
     }
 
@@ -259,9 +428,18 @@ public class MasterDataServiceImpl implements MasterDataService {
         return new SupplierDTO(
                 supplier.getId(),
                 supplier.getName(),
-                null, // contactPerson字段暂时设为null
-                null, // contactPhone字段暂时设为null
-                null  // address字段暂时设为null
+                supplier.getCode(),
+                supplier.getContactName(),
+                supplier.getContactEmail(),
+                supplier.getContactPhone(),
+                supplier.getAddress(),
+                supplier.getCity(),
+                supplier.getState(),
+                supplier.getZipCode(),
+                supplier.getCountry(),
+                supplier.getIsActive(),
+                supplier.getCreatedAt(),
+                supplier.getUpdatedAt()
         );
     }
 
@@ -269,7 +447,12 @@ public class MasterDataServiceImpl implements MasterDataService {
         return new LocationDTO(
                 location.getId(),
                 location.getName(),
-                null // description字段暂时设为null
+                location.getCode(),
+                location.getDescription(),
+                location.getZone(),
+                location.getIsActive(),
+                location.getCreatedAt(),
+                location.getUpdatedAt()
         );
     }
 }

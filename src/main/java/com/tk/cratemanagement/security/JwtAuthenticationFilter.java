@@ -40,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String userEmail;
+        // final String userEmail;
 
         // 检查Authorization头是否存在且以"Bearer "开头
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {

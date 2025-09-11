@@ -14,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -142,8 +140,8 @@ public class CrateServiceImpl implements CrateService {
         CrateType crateType = new CrateType();
         crateType.setTenantId(tenantId);
         crateType.setName(request.name());
-        crateType.setCapacity(request.capacity() != null ? BigDecimal.valueOf(request.capacity()) : null);
-        crateType.setWeight(request.weight() != null ? BigDecimal.valueOf(request.weight()) : null);
+        crateType.setCapacity(request.capacity() != null ? request.capacity() : null);
+        crateType.setWeight(request.weight() != null ? request.weight() : null);
 
         crateType = crateTypeRepository.save(crateType);
         log.info("周转筐类型创建成功: typeId={}", crateType.getId());
@@ -171,8 +169,8 @@ public class CrateServiceImpl implements CrateService {
                 .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在"));
 
         crateType.setName(request.name());
-        crateType.setCapacity(request.capacity() != null ? BigDecimal.valueOf(request.capacity()) : null);
-        crateType.setWeight(request.weight() != null ? BigDecimal.valueOf(request.weight()) : null);
+        crateType.setCapacity(request.capacity() != null ? request.capacity() : null);
+        crateType.setWeight(request.weight() != null ? request.weight() : null);
 
         crateType = crateTypeRepository.save(crateType);
         log.info("周转筐类型更新成功: typeId={}", crateType.getId());
@@ -204,16 +202,29 @@ public class CrateServiceImpl implements CrateService {
                 crate.getNfcUid(),
                 crate.getStatus(),
                 crate.getCrateType() != null ? crate.getCrateType().getId() : null,
-                crate.getCrateType() != null ? crate.getCrateType().getName() : null
+                crate.getCrateType() != null ? crate.getCrateType().getName() : null,
+                crate.getLastKnownLocation() != null ? crate.getLastKnownLocation().getId() : null,
+                crate.getLastKnownLocation() != null ? crate.getLastKnownLocation().getName() : null,
+                crate.getLastSeenAt(),
+                crate.getMaintenanceDueDate(),
+                crate.getCreatedAt(),
+                crate.getUpdatedAt()
         );
     }
 
     private CrateTypeDTO convertToTypeDTO(CrateType crateType) {
         return new CrateTypeDTO(
                 crateType.getId(),
+                crateType.getTenantId(),
                 crateType.getName(),
-                crateType.getCapacity() != null ? crateType.getCapacity().doubleValue() : null,
-                crateType.getWeight() != null ? crateType.getWeight().doubleValue() : null
+                crateType.getCapacity(),
+                crateType.getWeight(),
+                crateType.getDimensions(),
+                crateType.getMaterial(),
+                crateType.getColor(),
+                crateType.getIsActive(),
+                crateType.getCreatedAt(),
+                crateType.getUpdatedAt()
         );
     }
 
@@ -223,7 +234,10 @@ public class CrateServiceImpl implements CrateService {
                 content.getGoods() != null ? content.getGoods().getId() : null,
                 content.getGoods() != null ? content.getGoods().getName() : null,
                 content.getQuantity() != null ? content.getQuantity().doubleValue() : null,
-                content.getStatus()
+                content.getStatus(),
+                content.getLocation() != null ? content.getLocation().getId() : null,
+                content.getLocation() != null ? content.getLocation().getName() : null,
+                content.getLastUpdatedAt()
         );
     }
 }

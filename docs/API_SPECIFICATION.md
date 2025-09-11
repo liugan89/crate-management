@@ -13,7 +13,23 @@ This document defines the RESTful API endpoints for the backend. All endpoints a
 ### `POST /auth/register`
 -   **Description**: Registers a new tenant and its primary admin user.
 -   **Access**: Public
--   **Request DTO**: `RegisterRequestDTO { @NotBlank String companyName; @Email @NotBlank String email; @Size(min=8) String password; }`
+-   **Request DTO**: `RegisterRequestDTO { 
+        // 公司信息
+        @NotBlank String companyName; 
+        @Email String contactEmail; 
+        String phoneNumber; 
+        String address; 
+        String city; 
+        String state; 
+        String zipCode; 
+        String country; 
+        String timezone; 
+        // 管理员信息
+        @Email @NotBlank String email; 
+        @Size(min=8) String password; 
+        String fullName; 
+        String phone; 
+    }`
 -   **Response**: `201` with `AuthResponseDTO { String token; }`
 
 ### `POST /auth/login`

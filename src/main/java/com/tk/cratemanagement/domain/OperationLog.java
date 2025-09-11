@@ -7,6 +7,7 @@ import org.hibernate.envers.Audited;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.annotations.JdbcTypeCode;
 
+import java.net.InetAddress;
 import java.time.Instant;
 
 /**
@@ -38,9 +39,18 @@ public class OperationLog {
     @Column(name = "operation_type", nullable = false, length = 50)
     private String operationType;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "payload", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
+
+    @Column(name = "ip_address")
+    private InetAddress ipAddress;
+
+    @Column(name = "user_agent", columnDefinition = "TEXT")
+    private String userAgent;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

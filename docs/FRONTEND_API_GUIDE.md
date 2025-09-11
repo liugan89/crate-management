@@ -10,11 +10,11 @@
 
 **接口**: `POST /api/v1/auth/register`
 
-**请求参数**:
+**请求参数** ⚠️ 密码长度至少 8 位。:
 ```json
 {
   "email": "user@example.com",
-  "password": "password123456",  // 至少8位
+  "password": "password123456", 
   "username": "username",
   "companyName": "公司名称"
 }

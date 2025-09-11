@@ -47,15 +47,12 @@ public class WarehouseServiceImpl implements WarehouseService {
         order.setOrderNumber(generateOrderNumber());
         order.setType(request.type());
         order.setStatus(ShipmentOrderStatus.PENDING);
+        order.setPriority(request.priority() != null ? request.priority() : "NORMAL");
         order.setNotes(request.notes());
-        order.setCreatedAt(Instant.now());
+        order.setExpectedDeliveryDate(request.expectedDeliveryDate());
 
-        // 如果是调整单，设置原始单据关联
-        if (request.originalOrderId() != null) {
-            ShipmentOrder originalOrder = shipmentOrderRepository.findByIdAndTenantId(request.originalOrderId(), tenantId)
-                    .orElseThrow(() -> new IllegalArgumentException("原始单据不存在"));
-            order.setOriginalOrder(originalOrder);
-        }
+        // 注意：原始单据关联功能暂未实现
+        // TODO: 如果需要调整单功能，需要在ShipmentOrder实体中添加originalOrder字段
 
         order = shipmentOrderRepository.save(order);
         log.info("单据创建成功: orderId={}, orderNumber={}", order.getId(), order.getOrderNumber());
@@ -256,7 +253,7 @@ public class WarehouseServiceImpl implements WarehouseService {
         content.setQuantity(scan.getActualQuantity());
         content.setStatus(CrateContentStatus.INBOUND);
         content.setLastUpdatedAt(Instant.now());
-        content.setLastUpdatedByOrderId(item.getShipmentOrder().getId());
+        content.setLastUpdatedByOrder(item.getShipmentOrder());
 
         crateContentRepository.save(content);
         log.debug("入库处理完成: crateId={}, quantity={}", crate.getId(), scan.getActualQuantity());
@@ -271,7 +268,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         content.setStatus(CrateContentStatus.OUTBOUND);
         content.setLastUpdatedAt(Instant.now());
-        content.setLastUpdatedByOrderId(item.getShipmentOrder().getId());
+        content.setLastUpdatedByOrder(item.getShipmentOrder());
 
         crateContentRepository.save(content);
         crate.setStatus(CrateStatus.OUTBOUND);
@@ -304,7 +301,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         content.setStatus(CrateContentStatus.INBOUND);
         content.setLastUpdatedAt(Instant.now());
-        content.setLastUpdatedByOrderId(item.getShipmentOrder().getId());
+        content.setLastUpdatedByOrder(item.getShipmentOrder());
 
         crateContentRepository.save(content);
         crate.setStatus(CrateStatus.IN_USE);
@@ -346,11 +343,18 @@ public class WarehouseServiceImpl implements WarehouseService {
     private ShipmentOrderDTO convertToDTO(ShipmentOrder order) {
         return new ShipmentOrderDTO(
                 order.getId(),
+                order.getOrderNumber(),
                 order.getType(),
                 order.getStatus(),
-                order.getCreatedAt().atZone(java.time.ZoneId.systemDefault()),
-                null, // completedAt
-                order.getNotes()
+                order.getPriority(),
+                order.getNotes(),
+                order.getExpectedDeliveryDate(),
+                order.getActualDeliveryDate(),
+                order.getCreatedByUser() != null ? order.getCreatedByUser().getId() : null,
+                order.getCompletedByUser() != null ? order.getCompletedByUser().getId() : null,
+                order.getCreatedAt(),
+                order.getUpdatedAt(),
+                order.getCompletedAt()
         );
     }
 
