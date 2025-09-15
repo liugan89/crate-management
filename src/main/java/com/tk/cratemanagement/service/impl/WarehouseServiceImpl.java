@@ -134,9 +134,9 @@ public class WarehouseServiceImpl implements WarehouseService {
         ShipmentOrder order = shipmentOrderRepository.findByIdAndTenantId(orderId, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("单据不存在"));
 
-        if (order.getStatus() != ShipmentOrderStatus.PENDING) {
-            throw new IllegalStateException("只能为待处理状态的单据添加行项");
-        }
+//        if (order.getStatus() != ShipmentOrderStatus.PENDING) {
+//            throw new IllegalStateException("只能为待处理状态的单据添加行项");
+//        }
 
         // 验证货物和供应商
         Goods goods = goodsRepository.findByIdAndTenantId(request.goodsId(), tenantId)

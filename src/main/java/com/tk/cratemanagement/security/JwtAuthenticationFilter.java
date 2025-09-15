@@ -63,8 +63,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Long userId = jwtService.getUserIdFromToken(jwt);
             Long tenantId = jwtService.getTenantIdFromToken(jwt);
             
+            System.out.println("=== DEBUG JwtAuthenticationFilter ===");
+            System.out.println("从JWT解析的userId: " + userId);
+            System.out.println("从JWT解析的tenantId: " + tenantId);
+            
             // 设置租户上下文
             TenantContext.setCurrentTenantId(tenantId);
+            System.out.println("已设置TenantContext.tenantId: " + tenantId);
+            System.out.println("验证TenantContext.getCurrentTenantId(): " + TenantContext.getCurrentTenantId());
             
             // 如果用户未认证，则进行认证
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {

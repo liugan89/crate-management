@@ -25,22 +25,20 @@ public class TenantFilterInterceptor extends OncePerRequestFilter {
                                   FilterChain filterChain) throws ServletException, IOException {
         
         try {
-            // 临时实现：从请求头中获取租户ID
-            // 在实际JWT实现中，这里会从JWT token中解析租户ID
+            // 优先从请求头获取租户ID（用于特殊情况）
             String tenantIdHeader = request.getHeader("X-Tenant-ID");
             if (tenantIdHeader != null) {
                 try {
                     Long tenantId = Long.parseLong(tenantIdHeader);
                     TenantContext.setCurrentTenant(tenantId);
-                    log.debug("设置租户上下文: tenantId={}", tenantId);
+                    log.debug("从请求头设置租户上下文: tenantId={}", tenantId);
                 } catch (NumberFormatException e) {
                     log.warn("无效的租户ID: {}", tenantIdHeader);
                 }
-            } else {
-                // 临时默认租户ID，用于测试
-                TenantContext.setCurrentTenant(1L);
-                log.debug("使用默认租户ID: 1");
             }
+            // 注意：不再设置默认租户ID，让JwtAuthenticationFilter来处理
+            // 如果既没有X-Tenant-ID请求头，也没有JWT token，则TenantContext保持为null
+            // AuthUtils会在这种情况下使用默认值1L作为后备方案
             
             filterChain.doFilter(request, response);
         } finally {

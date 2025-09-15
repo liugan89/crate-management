@@ -84,6 +84,13 @@ public interface CrateService {
     List<CrateTypeDTO> getAllCrateTypes(Long tenantId);
 
     /**
+     * 获取周转筐类型列表
+     *
+     * @return 周转筐类型列表
+     */
+    List<CrateTypeDTO> getAllTenantsCrateTypes();
+
+    /**
      * 更新周转筐类型
      *
      * @param typeId 类型ID

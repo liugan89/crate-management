@@ -212,6 +212,21 @@ public class CrateController {
         return ResponseEntity.ok(crateTypes);
     }
 
+
+    /**
+     * 获取所有租户周转筐类型
+     */
+    @GetMapping("/crate-types/all")
+    @Operation(summary = "获取周转筐类型列表", description = "获取租户的所有周转筐类型")
+    public ResponseEntity<List<CrateTypeDTO>> getAllTenantsCrateTypes() {
+//        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+//        log.debug("获取周转筐类型列表: tenantId={}", tenantId);
+
+        List<CrateTypeDTO> crateTypes = crateService.getAllTenantsCrateTypes();
+
+        return ResponseEntity.ok(crateTypes);
+    }
+
     /**
      * 更新周转筐类型
      */

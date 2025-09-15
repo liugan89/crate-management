@@ -1,7 +1,7 @@
 package com.tk.cratemanagement.dto;
 
 public record AuthResponseDTO(
-        Long tenantId,
+//        Long tenantId,
         String token
 
 ) {}

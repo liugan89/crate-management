@@ -2,6 +2,7 @@ package com.tk.cratemanagement.controller;
 
 import com.tk.cratemanagement.dto.*;
 import com.tk.cratemanagement.service.MasterDataService;
+import com.tk.cratemanagement.util.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -316,6 +317,6 @@ public class MasterDataController {
      */
     private Long getTenantIdFromAuth(Authentication authentication) {
         // 使用AuthUtils工具类从认证信息中提取租户ID
-        return com.tk.cratemanagement.util.AuthUtils.getTenantIdFromAuth(authentication);
+        return AuthUtils.getTenantIdFromAuth(authentication);
     }
 }

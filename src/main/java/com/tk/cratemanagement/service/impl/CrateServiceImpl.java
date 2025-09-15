@@ -47,7 +47,8 @@ public class CrateServiceImpl implements CrateService {
 
         // 设置周转筐类型
         if (request.crateTypeId() != null) {
-            CrateType crateType = crateTypeRepository.findByIdAndTenantId(request.crateTypeId(), tenantId)
+//            CrateType crateType = crateTypeRepository.findByIdAndTenantId(request.crateTypeId(), tenantId)
+            CrateType crateType = crateTypeRepository.findById(request.crateTypeId())
                     .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在"));
             crate.setCrateType(crateType);
         }
@@ -118,7 +119,8 @@ public class CrateServiceImpl implements CrateService {
                 
                 // 设置周转筐类型
                 if (crateRequest.crateTypeId() != null) {
-                    CrateType crateType = crateTypeRepository.findByIdAndTenantId(crateRequest.crateTypeId(), tenantId)
+//                    CrateType crateType = crateTypeRepository.findByIdAndTenantId(crateRequest.crateTypeId(), tenantId)
+                    CrateType crateType = crateTypeRepository.findById(crateRequest.crateTypeId())
                             .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在: " + crateRequest.crateTypeId()));
                     crate.setCrateType(crateType);
                 }
@@ -185,7 +187,8 @@ public class CrateServiceImpl implements CrateService {
 
         // 更新周转筐类型
         if (request.crateTypeId() != null) {
-            CrateType crateType = crateTypeRepository.findByIdAndTenantId(request.crateTypeId(), tenantId)
+//            CrateType crateType = crateTypeRepository.findByIdAndTenantId(request.crateTypeId(), tenantId)
+            CrateType crateType = crateTypeRepository.findById(request.crateTypeId())
                     .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在"));
             crate.setCrateType(crateType);
         } else {
@@ -247,11 +250,20 @@ public class CrateServiceImpl implements CrateService {
     }
 
     @Override
+    public List<CrateTypeDTO> getAllTenantsCrateTypes() {
+        List<CrateType> crateTypes = crateTypeRepository.findAll();
+        return crateTypes.stream()
+                .map(this::convertToTypeDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public CrateTypeDTO updateCrateType(Long typeId, CrateTypeRequestDTO request, Long tenantId) {
         log.info("更新周转筐类型: typeId={}, tenantId={}", typeId, tenantId);
         
-        CrateType crateType = crateTypeRepository.findByIdAndTenantId(typeId, tenantId)
+//        CrateType crateType = crateTypeRepository.findByIdAndTenantId(typeId, tenantId)
+        CrateType crateType = crateTypeRepository.findById(typeId)
                 .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在"));
 
         crateType.setName(request.name());
@@ -269,7 +281,8 @@ public class CrateServiceImpl implements CrateService {
     public void deleteCrateType(Long typeId, Long tenantId) {
         log.info("删除周转筐类型: typeId={}, tenantId={}", typeId, tenantId);
         
-        CrateType crateType = crateTypeRepository.findByIdAndTenantId(typeId, tenantId)
+//        CrateType crateType = crateTypeRepository.findByIdAndTenantId(typeId, tenantId)
+        CrateType crateType = crateTypeRepository.findById(typeId)
                 .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在"));
 
         // 检查是否有周转筐正在使用此类型
