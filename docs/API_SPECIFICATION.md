@@ -91,11 +91,25 @@ This document defines the RESTful API endpoints for the backend. All endpoints a
 ---
 ## Master Data
 -   **Endpoints**: Standard CRUD endpoints for `/goods`, `/suppliers`, `/locations`, `/crate-types`.
-    -   `GET /<resource>`
+    -   `GET /<resource>` - 支持查询参数：`name`（名称模糊查询）、`isActive`（激活状态过滤）
     -   `POST /<resource>`
     -   `GET /<resource>/{id}`
     -   `PUT /<resource>/{id}`
     -   `DELETE /<resource>/{id}`
+
+### 查询参数说明
+-   **GET /goods**: 
+    -   `?name=关键词` - 按货物名称进行模糊查询（不区分大小写）
+    -   `?isActive=true/false` - 按激活状态过滤
+    -   示例：`/api/v1/goods?name=苹果&isActive=true`
+-   **GET /suppliers**: 
+    -   `?name=关键词` - 按供应商名称进行模糊查询（不区分大小写）
+    -   `?isActive=true/false` - 按激活状态过滤
+    -   示例：`/api/v1/suppliers?name=科技&isActive=true`
+-   **GET /locations**: 
+    -   `?name=关键词` - 按库位名称进行模糊查询（不区分大小写）
+    -   `?isActive=true/false` - 按激活状态过滤
+    -   示例：`/api/v1/locations?name=A区&isActive=true`
 
 ---
 ## Crate Management
@@ -114,8 +128,9 @@ This document defines the RESTful API endpoints for the backend. All endpoints a
 ## Warehouse Operations
 ### `POST /shipment-orders`
 -   **Description**: Creates a new shipment order (inbound, outbound, or adjustment).
--   **Request DTO**: `CreateShipmentOrderRequestDTO { @NotNull ShipmentOrderType type; String notes; Long originalOrderId; }`
+-   **Request DTO**: `CreateShipmentOrderRequestDTO { @NotNull ShipmentOrderType type; String priority; String notes; LocalDateTime expectedDeliveryDate; Long originalOrderId; }`
 -   **Response**: `201` with `ShipmentOrderDTO`
+-   **Note**: `orderNumber` is automatically generated based on order type (e.g., IN20240115143012A1B2, OUT20240115143012C3D4)
 
 ### `GET /shipment-orders`
 -   **Description**: Lists shipment orders, with filters for `type` and `status`.
@@ -136,14 +151,36 @@ This document defines the RESTful API endpoints for the backend. All endpoints a
 
 ### `POST /shipment-order-items/{itemId}/scans`
 -   **Description**: **High-frequency endpoint**. Records a single NFC scan against an order item.
--   **Request DTO**: `CreateScanRequestDTO { @NotBlank String nfcUid; @Positive double actualQuantity; }`
--   **Response**: `201` with `ScanDTO`
+-   **Request DTO**: `CreateScanRequestDTO { @NotBlank String nfcUid; @Positive BigDecimal actualQuantity; @NotNull Long locationId; }`
+-   **Response**: `201` with `ScanDTO { Long id; String nfcUid; ZonedDateTime scanTimestamp; BigDecimal quantity; Long locationId; String locationName; }`
+
+### `PUT /shipment-order-items/{itemId}`
+-   **Description**: Updates an order item in a pending shipment order.
+-   **Request DTO**: `UpdateOrderItemRequestDTO { Long goodsId; Long supplierId; @Positive BigDecimal expectedQuantity; String batchNumber; LocalDate productionDate; }`
+-   **Response**: `200` with `OrderItemDTO`
+-   **Note**: Only allowed for orders in PENDING or IN_PROGRESS status
+
+### `DELETE /shipment-order-items/{itemId}`
+-   **Description**: Deletes an order item and all associated scans from a pending shipment order.
+-   **Response**: `204 No Content`
+-   **Note**: Only allowed for orders in PENDING or IN_PROGRESS status
+
+### `PUT /scans/{scanId}`
+-   **Description**: Updates a scan record in a pending shipment order.
+-   **Request DTO**: `UpdateScanRequestDTO { @Positive BigDecimal actualQuantity; @NotNull Long locationId; }`
+-   **Response**: `200` with `ScanDTO`
+-   **Note**: Only allowed for orders in PENDING or IN_PROGRESS status
+
+### `DELETE /scans/{scanId}`
+-   **Description**: Deletes a scan record from a pending shipment order.
+-   **Response**: `204 No Content`
+-   **Note**: Only allowed for orders in PENDING or IN_PROGRESS status
 
 ---
 ## Inventory & History
 ### `GET /inventory/summary`
 -   **Description**: Gets a real-time summary of inventory, grouped by goods.
--   **Response**: `200` with `List<InventorySummaryDTO { String goodsName; String sku; double totalQuantity; }>`
+-   **Response**: `200` with `List<InventorySummaryDTO { String goodsName; String sku; BigDecimal totalQuantity; }>`
 
 ### `GET /inventory/details`
 -   **Description**: Gets a detailed list of all crates in stock for a specific good.

@@ -2,6 +2,7 @@ package com.tk.cratemanagement.dto;
 
 import com.tk.cratemanagement.domain.enumeration.CrateContentStatus;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 public record InventoryDetailDTO(
@@ -10,7 +11,7 @@ public record InventoryDetailDTO(
         String goodsName,
         String supplierName,
         String batchNumber,
-        double quantity,
+        BigDecimal quantity,
         CrateContentStatus status,
         Instant lastUpdatedAt
 ) {}

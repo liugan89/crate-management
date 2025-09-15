@@ -21,9 +21,6 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/swagger-ui/**")
                 .addResourceLocations("classpath:/META-INF/resources/webjars/swagger-ui/");
         
-        // 确保API路径不会被当作静态资源处理
-        registry.addResourceHandler("/api/**")
-                .addResourceLocations("classpath:/static/")
-                .setCachePeriod(0);
+        // API路径不应该被当作静态资源处理，移除此配置
     }
 }

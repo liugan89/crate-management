@@ -7,6 +7,7 @@ import java.util.List;
 
 public record ShipmentOrderDetailsDTO(
     Long id,
+    String orderNumber,
     ShipmentOrderType type,
     ShipmentOrderStatus status,
     ZonedDateTime createdAt,

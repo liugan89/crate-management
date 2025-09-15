@@ -20,6 +20,16 @@ public interface CrateService {
     CrateDTO registerCrate(CrateRequestDTO request, Long tenantId);
 
     /**
+     * 批量注册周转筐
+     * 支持一次性注册多个周转筐，提供详细的成功/失败信息
+     *
+     * @param request 批量注册请求
+     * @param tenantId 租户ID
+     * @return 批量注册响应，包含成功和失败的详细信息
+     */
+    BatchRegisterResponseDTO batchRegisterCrates(BatchRegisterCratesRequestDTO request, Long tenantId);
+
+    /**
      * 获取所有周转筐列表
      *
      * @param tenantId 租户ID
@@ -90,4 +100,26 @@ public interface CrateService {
      * @param tenantId 租户ID
      */
     void deleteCrateType(Long typeId, Long tenantId);
+
+    /**
+     * 报废周转筐
+     * 将周转筐状态设置为INACTIVE，表示不再使用
+     *
+     * @param crateId 周转筐ID
+     * @param tenantId 租户ID
+     * @param reason 报废原因（可选）
+     * @return 更新后的周转筐DTO
+     */
+    CrateDTO deactivateCrate(Long crateId, Long tenantId, String reason);
+
+    /**
+     * 批量报废周转筐
+     * 将多个周转筐状态设置为INACTIVE
+     *
+     * @param crateIds 周转筐ID列表
+     * @param tenantId 租户ID
+     * @param reason 报废原因（可选）
+     * @return 报废成功的周转筐数量
+     */
+    int batchDeactivateCrates(List<Long> crateIds, Long tenantId, String reason);
 }

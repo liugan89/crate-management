@@ -2,7 +2,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: create-drop  # 开发环境重新创建表结构
+      ddl-auto: update  # 开发环境：如果表不存在则创建，存在则更新结构，保留数据
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:

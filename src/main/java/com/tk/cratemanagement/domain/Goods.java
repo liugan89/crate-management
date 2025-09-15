@@ -4,7 +4,9 @@ import com.tk.cratemanagement.domain.enumeration.ProductUnit;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.envers.Audited;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -27,7 +29,7 @@ public class Goods {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String name;
 
     @Column(length = 100)
@@ -50,6 +52,7 @@ public class Goods {
     private String description;
 
     @Column(name = "custom_fields", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String customFields;
 
     @Column(name = "is_active")

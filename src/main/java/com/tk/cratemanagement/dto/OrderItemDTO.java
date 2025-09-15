@@ -1,5 +1,6 @@
 package com.tk.cratemanagement.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -11,6 +12,6 @@ public record OrderItemDTO(
     String supplierName,
     String batchNumber,
     LocalDate productionDate,
-    double expectedQuantity,
+    BigDecimal expectedQuantity,
     List<ScanDTO> scans
 ) {}

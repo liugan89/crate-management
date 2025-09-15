@@ -111,6 +111,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
 
         // 软删除：设置deleted_at时间戳
+        user.setActive(false);
         user.setDeletedAt(java.time.LocalDateTime.now());
         user.setUpdatedAt(java.time.LocalDateTime.now());
         userRepository.save(user);

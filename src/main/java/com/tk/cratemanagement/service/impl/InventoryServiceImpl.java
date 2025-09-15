@@ -55,13 +55,16 @@ public class InventoryServiceImpl implements InventoryService {
                     
                     // 获取SKU（假设同一货物的SKU相同）
                     String sku = contents.get(0).getGoods().getSku();
+
+                    // get id
+                    Long goodsId = contents.get(0).getGoods().getId();
                     
                     // 计算总数量
                     BigDecimal totalQuantity = contents.stream()
                             .map(CrateContent::getQuantity)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                    return new InventorySummaryDTO(goodsName, sku, totalQuantity.doubleValue());
+                    return new InventorySummaryDTO(goodsId, goodsName, sku, totalQuantity);
                 })
                 .collect(Collectors.toList());
     }
@@ -107,7 +110,7 @@ public class InventoryServiceImpl implements InventoryService {
                 content.getGoods().getName(),
                 content.getSupplier() != null ? content.getSupplier().getName() : null,
                 content.getBatchNumber(),
-                content.getQuantity().doubleValue(),
+                content.getQuantity(),
                 content.getStatus(),
                 content.getLastUpdatedAt()
         );

@@ -1,7 +1,10 @@
 package com.tk.cratemanagement.dto;
 
-public record InventorySummaryDTO(
+import java.math.BigDecimal;
+
+public record InventorySummaryDTO<Stirng>(
+        Long goodsId,
         String goodsName,
         String sku,
-        double totalQuantity
+        BigDecimal totalQuantity
 ) {}

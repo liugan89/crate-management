@@ -224,14 +224,9 @@ const createCrateResponse = await fetch('http://localhost:8080/api/v1/crates', {
 // POST /api/v1/shipment-orders
 const orderData = {
   type: "INBOUND",
-  description: "入库单据描述",
-  expectedDeliveryDate: "2024-12-31T23:59:59Z",
-  items: [{
-    goodsId: 1,
-    supplierId: 1,
-    batchNumber: "BATCH001",
-    expectedQuantity: 100
-  }]
+  priority: "NORMAL", 
+  notes: "入库单据描述",
+  expectedDeliveryDate: "2024-12-31T23:59:59Z"
 };
 
 const createOrderResponse = await fetch('http://localhost:8080/api/v1/shipment-orders', {
@@ -240,6 +235,18 @@ const createOrderResponse = await fetch('http://localhost:8080/api/v1/shipment-o
   body: JSON.stringify(orderData)
 });
 const newOrder = await createOrderResponse.json();
+
+// 响应示例 - 单据编号自动生成
+// {
+//   "id": 123,
+//   "orderNumber": "IN20240115143012A1B2",  // 自动生成：IN(入库) + 时间戳 + 随机码
+//   "type": "INBOUND",
+//   "status": "PENDING",
+//   "priority": "NORMAL",
+//   "notes": "入库单据描述",
+//   "expectedDeliveryDate": "2024-12-31T23:59:59Z",
+//   "createdAt": "2024-01-15T14:30:12Z"
+// }
 ```
 
 **获取单据列表**
@@ -257,13 +264,75 @@ const orders = await ordersResponse.json();
 // POST /api/v1/shipment-order-items/{itemId}/scans
 const scanData = {
   nfcUid: "NFC123456789",
-  actualQuantity: 50
+  actualQuantity: 50,
+  locationId: 1  // 必须指定库位ID
 };
 
 const addScanResponse = await fetch(`http://localhost:8080/api/v1/shipment-order-items/${itemId}/scans`, {
   method: 'POST',
   headers: headers,
   body: JSON.stringify(scanData)
+});
+
+// 响应示例
+const scanResult = await addScanResponse.json();
+// {
+//   "id": 123,
+//   "nfcUid": "NFC123456789",
+//   "scanTimestamp": "2024-01-15T10:30:00Z",
+//   "quantity": 50,
+//   "locationId": 1,
+//   "locationName": "A区-01-01"
+// }
+```
+
+**更新单据行项**
+```javascript
+// PUT /api/v1/shipment-order-items/{itemId}
+const updateItemData = {
+  goodsId: 2,
+  expectedQuantity: 75.5,
+  batchNumber: "BATCH002"
+};
+
+const updateItemResponse = await fetch(`http://localhost:8080/api/v1/shipment-order-items/${itemId}`, {
+  method: 'PUT',
+  headers: headers,
+  body: JSON.stringify(updateItemData)
+});
+```
+
+**删除单据行项**
+```javascript
+// DELETE /api/v1/shipment-order-items/{itemId}
+const deleteItemResponse = await fetch(`http://localhost:8080/api/v1/shipment-order-items/${itemId}`, {
+  method: 'DELETE',
+  headers: headers
+});
+// 注意：删除行项会自动删除关联的所有扫码记录
+```
+
+**更新扫码记录**
+```javascript
+// PUT /api/v1/scans/{scanId}
+const updateScanData = {
+  actualQuantity: 30.0,
+  locationId: 2
+};
+
+const updateScanResponse = await fetch(`http://localhost:8080/api/v1/scans/${scanId}`, {
+  method: 'PUT',
+  headers: headers,
+  body: JSON.stringify(updateScanData)
+});
+```
+
+**删除扫码记录**
+```javascript
+// DELETE /api/v1/scans/{scanId}
+const deleteScanResponse = await fetch(`http://localhost:8080/api/v1/scans/${scanId}`, {
+  method: 'DELETE',
+  headers: headers
 });
 ```
 

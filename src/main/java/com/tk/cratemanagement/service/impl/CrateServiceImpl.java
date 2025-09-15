@@ -14,8 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -57,6 +56,93 @@ public class CrateServiceImpl implements CrateService {
         log.info("周转筐注册成功: crateId={}, nfcUid={}", crate.getId(), crate.getNfcUid());
 
         return convertToDTO(crate);
+    }
+
+    @Override
+    @Transactional
+    public BatchRegisterResponseDTO batchRegisterCrates(BatchRegisterCratesRequestDTO request, Long tenantId) {
+        log.info("批量注册周转筐: 数量={}, tenantId={}, notes={}", 
+                request.crates().size(), tenantId, request.notes());
+        
+        List<CrateDTO> successfulCrates = new ArrayList<>();
+        List<BatchRegisterResponseDTO.BatchRegisterFailureDTO> failures = new ArrayList<>();
+        
+        // 预检查：检查所有NFC UID是否在租户内重复
+        Set<String> requestNfcUids = request.crates().stream()
+                .map(CrateRequestDTO::nfcUid)
+                .collect(Collectors.toSet());
+        
+        // 检查请求内部是否有重复的NFC UID
+        if (requestNfcUids.size() != request.crates().size()) {
+            Map<String, Long> nfcUidCounts = request.crates().stream()
+                    .collect(Collectors.groupingBy(CrateRequestDTO::nfcUid, Collectors.counting()));
+            
+            nfcUidCounts.entrySet().stream()
+                    .filter(entry -> entry.getValue() > 1)
+                    .forEach(entry -> {
+                        failures.add(BatchRegisterResponseDTO.BatchRegisterFailureDTO.of(
+                                entry.getKey(), 
+                                "请求中存在重复的NFC UID", 
+                                "DUPLICATE_IN_REQUEST"
+                        ));
+                    });
+        }
+        
+        // 检查数据库中是否已存在这些NFC UID
+        List<String> existingNfcUids = crateRepository.findNfcUidsByTenantIdAndNfcUidIn(tenantId, requestNfcUids);
+        Set<String> existingNfcUidSet = new HashSet<>(existingNfcUids);
+        
+        // 逐个处理注册请求
+        for (CrateRequestDTO crateRequest : request.crates()) {
+            try {
+                // 跳过已经在失败列表中的NFC UID
+                if (failures.stream().anyMatch(f -> f.nfcUid().equals(crateRequest.nfcUid()))) {
+                    continue;
+                }
+                
+                // 检查是否已存在
+                if (existingNfcUidSet.contains(crateRequest.nfcUid())) {
+                    failures.add(BatchRegisterResponseDTO.BatchRegisterFailureDTO.of(
+                            crateRequest.nfcUid(), 
+                            "NFC UID在当前租户内已存在", 
+                            "DUPLICATE_NFC_UID"
+                    ));
+                    continue;
+                }
+                
+                // 执行单个注册（不使用原有的registerCrate方法，避免重复检查）
+                Crate crate = new Crate();
+                crate.setTenantId(tenantId);
+                crate.setNfcUid(crateRequest.nfcUid());
+                crate.setStatus(CrateStatus.AVAILABLE);
+                
+                // 设置周转筐类型
+                if (crateRequest.crateTypeId() != null) {
+                    CrateType crateType = crateTypeRepository.findByIdAndTenantId(crateRequest.crateTypeId(), tenantId)
+                            .orElseThrow(() -> new IllegalArgumentException("周转筐类型不存在: " + crateRequest.crateTypeId()));
+                    crate.setCrateType(crateType);
+                }
+                
+                crate = crateRepository.save(crate);
+                successfulCrates.add(convertToDTO(crate));
+                
+                // 添加到已存在集合，避免后续重复
+                existingNfcUidSet.add(crateRequest.nfcUid());
+                
+            } catch (Exception e) {
+                log.warn("批量注册中单个周转筐失败: nfcUid={}, error={}", crateRequest.nfcUid(), e.getMessage());
+                failures.add(BatchRegisterResponseDTO.BatchRegisterFailureDTO.of(
+                        crateRequest.nfcUid(), 
+                        e.getMessage(), 
+                        "REGISTRATION_ERROR"
+                ));
+            }
+        }
+        
+        log.info("批量注册完成: 总数={}, 成功={}, 失败={}", 
+                request.crates().size(), successfulCrates.size(), failures.size());
+        
+        return BatchRegisterResponseDTO.success(request.crates().size(), successfulCrates, failures);
     }
 
     @Override
@@ -195,6 +281,67 @@ public class CrateServiceImpl implements CrateService {
         log.info("周转筐类型删除成功: typeId={}", typeId);
     }
 
+    @Override
+    @Transactional
+    public CrateDTO deactivateCrate(Long crateId, Long tenantId, String reason) {
+        log.info("报废周转筐: crateId={}, tenantId={}, reason={}", crateId, tenantId, reason);
+        
+        Crate crate = crateRepository.findByIdAndTenantId(crateId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("周转筐不存在"));
+
+        // 检查周转筐当前状态
+        if (crate.getStatus() == CrateStatus.INACTIVE) {
+            throw new IllegalStateException("周转筐已经处于报废状态");
+        }
+
+        // 如果周转筐正在使用中，需要先清空内容
+        if (crate.getStatus() == CrateStatus.IN_USE) {
+            log.warn("报废使用中的周转筐，将清空其内容: crateId={}", crateId);
+            // 清空周转筐内容
+            crateContentRepository.findByCrateId(crateId).ifPresent(content -> {
+                crateContentRepository.delete(content);
+                log.info("已清空报废周转筐的内容: crateId={}", crateId);
+            });
+        }
+
+        // 设置为报废状态
+        crate.setStatus(CrateStatus.INACTIVE);
+        
+        // 如果有报废原因，可以记录到备注字段（如果Crate实体有notes字段的话）
+        // crate.setNotes(reason);
+        
+        crate = crateRepository.save(crate);
+        log.info("周转筐报废成功: crateId={}, 原状态={}", crateId, crate.getStatus());
+
+        return convertToDTO(crate);
+    }
+
+    @Override
+    @Transactional
+    public int batchDeactivateCrates(List<Long> crateIds, Long tenantId, String reason) {
+        log.info("批量报废周转筐: crateIds={}, tenantId={}, reason={}", crateIds, tenantId, reason);
+        
+        if (crateIds == null || crateIds.isEmpty()) {
+            throw new IllegalArgumentException("周转筐ID列表不能为空");
+        }
+
+        int successCount = 0;
+        int failCount = 0;
+
+        for (Long crateId : crateIds) {
+            try {
+                deactivateCrate(crateId, tenantId, reason);
+                successCount++;
+            } catch (Exception e) {
+                failCount++;
+                log.warn("批量报废中单个周转筐失败: crateId={}, error={}", crateId, e.getMessage());
+            }
+        }
+
+        log.info("批量报废完成: 成功={}, 失败={}, 总数={}", successCount, failCount, crateIds.size());
+        return successCount;
+    }
+
     // DTO转换方法
     private CrateDTO convertToDTO(Crate crate) {
         return new CrateDTO(
@@ -233,7 +380,7 @@ public class CrateServiceImpl implements CrateService {
                 content.getId(),
                 content.getGoods() != null ? content.getGoods().getId() : null,
                 content.getGoods() != null ? content.getGoods().getName() : null,
-                content.getQuantity() != null ? content.getQuantity().doubleValue() : null,
+                content.getQuantity() != null ? content.getQuantity() : null,
                 content.getStatus(),
                 content.getLocation() != null ? content.getLocation().getId() : null,
                 content.getLocation() != null ? content.getLocation().getName() : null,

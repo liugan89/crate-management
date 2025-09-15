@@ -2,8 +2,11 @@ package com.tk.cratemanagement.repository;
 
 import com.tk.cratemanagement.domain.Crate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,4 +37,11 @@ public interface CrateRepository extends JpaRepository<Crate, Long> {
      * 检查是否有周转筐正在使用指定的周转筐类型
      */
     boolean existsByCrateTypeId(Long crateTypeId);
+    
+    /**
+     * 批量查询指定租户下已存在的NFC UID
+     * 用于批量注册时的重复性检查
+     */
+    @Query("SELECT c.nfcUid FROM Crate c WHERE c.tenantId = :tenantId AND c.nfcUid IN :nfcUids")
+    List<String> findNfcUidsByTenantIdAndNfcUidIn(@Param("tenantId") Long tenantId, @Param("nfcUids") Collection<String> nfcUids);
 }

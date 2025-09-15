@@ -1,15 +1,14 @@
 package com.tk.cratemanagement.dto;
 
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public record CreateOrderItemRequestDTO(
-    @NotNull Long goodsId,
+public record UpdateOrderItemRequestDTO(
+    Long goodsId,
     Long supplierId,
-    @NotNull @Positive BigDecimal expectedQuantity,
+    @Positive BigDecimal expectedQuantity,
     String batchNumber,
     LocalDate productionDate
 ) {}

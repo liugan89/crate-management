@@ -50,12 +50,20 @@ public class MasterDataController {
      * 获取所有货物
      */
     @GetMapping("/goods")
-    @Operation(summary = "获取货物列表", description = "获取当前租户的所有货物")
-    public ResponseEntity<List<GoodsDTO>> getAllGoods(Authentication authentication) {
+    @Operation(summary = "获取货物列表", description = "获取当前租户的所有货物，支持按名称模糊查询和激活状态过滤")
+    public ResponseEntity<List<GoodsDTO>> getAllGoods(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Boolean isActive,
+            Authentication authentication) {
         Long tenantId = getTenantIdFromAuth(authentication);
-        log.debug("获取货物列表: tenantId={}", tenantId);
+        log.debug("获取货物列表: tenantId={}, name={}, isActive={}", tenantId, name, isActive);
         
-        List<GoodsDTO> goods = masterDataService.getAllGoods(tenantId);
+        List<GoodsDTO> goods;
+        if (name != null || isActive != null) {
+            goods = masterDataService.getGoodsWithFilters(tenantId, name, isActive);
+        } else {
+            goods = masterDataService.getAllGoods(tenantId);
+        }
         
         return ResponseEntity.ok(goods);
     }
@@ -149,12 +157,20 @@ public class MasterDataController {
      * 获取所有供应商
      */
     @GetMapping("/suppliers")
-    @Operation(summary = "获取供应商列表", description = "获取当前租户的所有供应商")
-    public ResponseEntity<List<SupplierDTO>> getAllSuppliers(Authentication authentication) {
+    @Operation(summary = "获取供应商列表", description = "获取当前租户的所有供应商，支持按名称模糊查询和激活状态过滤")
+    public ResponseEntity<List<SupplierDTO>> getAllSuppliers(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Boolean isActive,
+            Authentication authentication) {
         Long tenantId = getTenantIdFromAuth(authentication);
-        log.debug("获取供应商列表: tenantId={}", tenantId);
+        log.debug("获取供应商列表: tenantId={}, name={}, isActive={}", tenantId, name, isActive);
         
-        List<SupplierDTO> suppliers = masterDataService.getAllSuppliers(tenantId);
+        List<SupplierDTO> suppliers;
+        if (name != null || isActive != null) {
+            suppliers = masterDataService.getSuppliersWithFilters(tenantId, name, isActive);
+        } else {
+            suppliers = masterDataService.getAllSuppliers(tenantId);
+        }
         
         return ResponseEntity.ok(suppliers);
     }
@@ -229,12 +245,20 @@ public class MasterDataController {
      * 获取所有库位
      */
     @GetMapping("/locations")
-    @Operation(summary = "获取库位列表", description = "获取当前租户的所有库位")
-    public ResponseEntity<List<LocationDTO>> getAllLocations(Authentication authentication) {
+    @Operation(summary = "获取库位列表", description = "获取当前租户的所有库位，支持按名称模糊查询和激活状态过滤")
+    public ResponseEntity<List<LocationDTO>> getAllLocations(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Boolean isActive,
+            Authentication authentication) {
         Long tenantId = getTenantIdFromAuth(authentication);
-        log.debug("获取库位列表: tenantId={}", tenantId);
+        log.debug("获取库位列表: tenantId={}, name={}, isActive={}", tenantId, name, isActive);
         
-        List<LocationDTO> locations = masterDataService.getAllLocations(tenantId);
+        List<LocationDTO> locations;
+        if (name != null || isActive != null) {
+            locations = masterDataService.getLocationsWithFilters(tenantId, name, isActive);
+        } else {
+            locations = masterDataService.getAllLocations(tenantId);
+        }
         
         return ResponseEntity.ok(locations);
     }

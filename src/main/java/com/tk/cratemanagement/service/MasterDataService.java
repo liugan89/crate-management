@@ -31,6 +31,16 @@ public interface MasterDataService {
     List<GoodsDTO> getAllGoods(Long tenantId);
 
     /**
+     * 根据查询条件获取货物列表
+     *
+     * @param tenantId 租户ID
+     * @param name 名称模糊查询（可选）
+     * @param isActive 激活状态过滤（可选）
+     * @return 货物列表
+     */
+    List<GoodsDTO> getGoodsWithFilters(Long tenantId, String name, Boolean isActive);
+
+    /**
      * 根据ID获取货物
      *
      * @param goodsId 货物ID
@@ -87,6 +97,16 @@ public interface MasterDataService {
     List<SupplierDTO> getAllSuppliers(Long tenantId);
 
     /**
+     * 根据查询条件获取供应商列表
+     *
+     * @param tenantId 租户ID
+     * @param name 名称模糊查询（可选）
+     * @param isActive 激活状态过滤（可选）
+     * @return 供应商列表
+     */
+    List<SupplierDTO> getSuppliersWithFilters(Long tenantId, String name, Boolean isActive);
+
+    /**
      * 根据ID获取供应商
      *
      * @param supplierId 供应商ID
@@ -131,6 +151,16 @@ public interface MasterDataService {
      * @return 库位列表
      */
     List<LocationDTO> getAllLocations(Long tenantId);
+
+    /**
+     * 根据查询条件获取库位列表
+     *
+     * @param tenantId 租户ID
+     * @param name 名称模糊查询（可选）
+     * @param isActive 激活状态过滤（可选）
+     * @return 库位列表
+     */
+    List<LocationDTO> getLocationsWithFilters(Long tenantId, String name, Boolean isActive);
 
     /**
      * 根据ID获取库位

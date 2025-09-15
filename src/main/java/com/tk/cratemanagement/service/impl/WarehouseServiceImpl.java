@@ -36,6 +36,7 @@ public class WarehouseServiceImpl implements WarehouseService {
     private final GoodsRepository goodsRepository;
     private final SupplierRepository supplierRepository;
     private final OperationLogRepository operationLogRepository;
+    private final LocationRepository locationRepository;
 
     @Override
     @Transactional
@@ -44,7 +45,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         ShipmentOrder order = new ShipmentOrder();
         order.setTenantId(tenantId);
-        order.setOrderNumber(generateOrderNumber());
+        order.setOrderNumber(generateOrderNumber(request.type()));
         order.setType(request.type());
         order.setStatus(ShipmentOrderStatus.PENDING);
         order.setPriority(request.priority() != null ? request.priority() : "NORMAL");
@@ -151,7 +152,7 @@ public class WarehouseServiceImpl implements WarehouseService {
         item.setShipmentOrder(order);
         item.setGoods(goods);
         item.setSupplier(supplier);
-        item.setExpectedQuantity(request.expectedQuantity() != null ? BigDecimal.valueOf(request.expectedQuantity()) : null);
+        item.setExpectedQuantity(request.expectedQuantity() != null ? request.expectedQuantity() : null);
         item.setBatchNumber(request.batchNumber());
         item.setProductionDate(request.productionDate());
 
@@ -177,6 +178,13 @@ public class WarehouseServiceImpl implements WarehouseService {
         Crate crate = crateRepository.findByTenantIdAndNfcUid(tenantId, request.nfcUid())
                 .orElseThrow(() -> new IllegalArgumentException("周转筐不存在: " + request.nfcUid()));
 
+        // 验证库位
+        Location location = null;
+        if (request.locationId() != null) {
+            location = locationRepository.findByIdAndTenantId(request.locationId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("库位不存在: " + request.locationId()));
+        }
+
         // 检查是否已经扫码
         if (scanRepository.findByOrderItemIdAndCrateId(itemId, crate.getId()).isPresent()) {
             throw new IllegalArgumentException("该周转筐已经扫码");
@@ -185,7 +193,8 @@ public class WarehouseServiceImpl implements WarehouseService {
         ShipmentOrderItemScan scan = new ShipmentOrderItemScan();
         scan.setOrderItem(item);
         scan.setCrate(crate);
-        scan.setActualQuantity(BigDecimal.valueOf(request.actualQuantity()));
+        scan.setActualQuantity(request.actualQuantity() != null ? request.actualQuantity() : null);
+        scan.setLocation(location);
         scan.setScannedAt(Instant.now());
         scan.setScannedByUserId(userId);
 
@@ -199,6 +208,122 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         log.info("扫码记录添加成功: scanId={}", scan.getId());
         return convertToScanDTO(scan);
+    }
+
+    @Override
+    @Transactional
+    public OrderItemDTO updateOrderItem(Long itemId, UpdateOrderItemRequestDTO request, Long tenantId) {
+        log.info("更新单据行项: itemId={}, tenantId={}", itemId, tenantId);
+
+        ShipmentOrderItem item = shipmentOrderItemRepository.findByIdAndShipmentOrderTenantId(itemId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("单据行项不存在"));
+
+        // 检查单据状态
+        if (item.getShipmentOrder().getStatus() == ShipmentOrderStatus.COMPLETED) {
+            throw new IllegalStateException("已完成的单据不能修改行项");
+        }
+
+        // 验证货物和供应商（如果有更新）
+        if (request.goodsId() != null) {
+            Goods goods = goodsRepository.findByIdAndTenantId(request.goodsId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("货物不存在"));
+            item.setGoods(goods);
+        }
+
+        if (request.supplierId() != null) {
+            Supplier supplier = supplierRepository.findByIdAndTenantId(request.supplierId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("供应商不存在"));
+            item.setSupplier(supplier);
+        }
+
+        // 更新其他字段
+        if (request.expectedQuantity() != null) {
+            item.setExpectedQuantity(request.expectedQuantity());
+        }
+        if (request.batchNumber() != null) {
+            item.setBatchNumber(request.batchNumber());
+        }
+        if (request.productionDate() != null) {
+            item.setProductionDate(request.productionDate());
+        }
+
+        item = shipmentOrderItemRepository.save(item);
+        log.info("单据行项更新成功: itemId={}", itemId);
+
+        return convertToOrderItemDTO(item);
+    }
+
+    @Override
+    @Transactional
+    public void deleteOrderItem(Long itemId, Long tenantId) {
+        log.info("删除单据行项: itemId={}, tenantId={}", itemId, tenantId);
+
+        ShipmentOrderItem item = shipmentOrderItemRepository.findByIdAndShipmentOrderTenantId(itemId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("单据行项不存在"));
+
+        // 检查单据状态
+        if (item.getShipmentOrder().getStatus() == ShipmentOrderStatus.COMPLETED) {
+            throw new IllegalStateException("已完成的单据不能删除行项");
+        }
+
+        // 先删除关联的扫码记录
+        List<ShipmentOrderItemScan> scans = scanRepository.findByOrderItemId(itemId);
+        if (!scans.isEmpty()) {
+            log.info("删除行项关联的扫码记录: itemId={}, scanCount={}", itemId, scans.size());
+            scanRepository.deleteAll(scans);
+        }
+
+        // 删除行项
+        shipmentOrderItemRepository.delete(item);
+        log.info("单据行项删除成功: itemId={}", itemId);
+    }
+
+    @Override
+    @Transactional
+    public ScanDTO updateScan(Long scanId, UpdateScanRequestDTO request, Long tenantId) {
+        log.info("更新扫码记录: scanId={}, tenantId={}", scanId, tenantId);
+
+        ShipmentOrderItemScan scan = scanRepository.findByIdAndOrderItemShipmentOrderTenantId(scanId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("扫码记录不存在"));
+
+        // 检查单据状态
+        if (scan.getOrderItem().getShipmentOrder().getStatus() == ShipmentOrderStatus.COMPLETED) {
+            throw new IllegalStateException("已完成的单据不能修改扫码记录");
+        }
+
+        // 验证并更新库位
+        if (request.locationId() != null) {
+            Location location = locationRepository.findByIdAndTenantId(request.locationId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("库位不存在: " + request.locationId()));
+            scan.setLocation(location);
+        }
+
+        // 更新数量
+        if (request.actualQuantity() != null) {
+            scan.setActualQuantity(request.actualQuantity());
+        }
+
+        scan = scanRepository.save(scan);
+        log.info("扫码记录更新成功: scanId={}", scanId);
+
+        return convertToScanDTO(scan);
+    }
+
+    @Override
+    @Transactional
+    public void deleteScan(Long scanId, Long tenantId) {
+        log.info("删除扫码记录: scanId={}, tenantId={}", scanId, tenantId);
+
+        ShipmentOrderItemScan scan = scanRepository.findByIdAndOrderItemShipmentOrderTenantId(scanId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("扫码记录不存在"));
+
+        // 检查单据状态
+        if (scan.getOrderItem().getShipmentOrder().getStatus() == ShipmentOrderStatus.COMPLETED) {
+            throw new IllegalStateException("已完成的单据不能删除扫码记录");
+        }
+
+        scanRepository.delete(scan);
+        log.info("扫码记录删除成功: scanId={}", scanId);
     }
 
     /**
@@ -335,8 +460,24 @@ public class WarehouseServiceImpl implements WarehouseService {
         operationLogRepository.save(operationLog);
     }
 
-    private String generateOrderNumber() {
-        return "SO" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+    /**
+     * 根据单据类型生成单据编号
+     * 格式：类型前缀 + 年月日 + 时分秒 + 随机4位
+     */
+    private String generateOrderNumber(ShipmentOrderType type) {
+        String prefix = switch (type) {
+            case INBOUND -> "IN";
+            case OUTBOUND -> "OUT";
+            case INBOUND_ADJUSTMENT -> "INA";
+            case OUTBOUND_ADJUSTMENT -> "OUA";
+        };
+        
+        String timestamp = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        
+        return prefix + timestamp + randomSuffix;
     }
 
     // DTO转换方法
@@ -361,6 +502,7 @@ public class WarehouseServiceImpl implements WarehouseService {
     private ShipmentOrderSummaryDTO convertToSummaryDTO(ShipmentOrder order) {
         return new ShipmentOrderSummaryDTO(
                 order.getId(),
+                order.getOrderNumber(),
                 order.getType(),
                 order.getStatus(),
                 order.getCreatedAt().atZone(java.time.ZoneId.systemDefault()),
@@ -375,6 +517,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         return new ShipmentOrderDetailsDTO(
                 order.getId(),
+                order.getOrderNumber(),
                 order.getType(),
                 order.getStatus(),
                 order.getCreatedAt().atZone(java.time.ZoneId.systemDefault()),
@@ -397,7 +540,7 @@ public class WarehouseServiceImpl implements WarehouseService {
                 item.getSupplier() != null ? item.getSupplier().getName() : null,
                 item.getBatchNumber(),
                 item.getProductionDate(),
-                item.getExpectedQuantity() != null ? item.getExpectedQuantity().doubleValue() : 0.0,
+                item.getExpectedQuantity() != null ? item.getExpectedQuantity() : BigDecimal.ZERO,
                 scans
         );
     }
@@ -407,7 +550,9 @@ public class WarehouseServiceImpl implements WarehouseService {
                 scan.getId(),
                 scan.getCrate().getNfcUid(),
                 scan.getScannedAt().atZone(java.time.ZoneId.systemDefault()),
-                scan.getActualQuantity().doubleValue()
+                scan.getActualQuantity(),
+                scan.getLocation() != null ? scan.getLocation().getId() : null,
+                scan.getLocation() != null ? scan.getLocation().getName() : null
         );
     }
 }

@@ -38,4 +38,16 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
      */
     @Query("SELECT s FROM Supplier s WHERE s.tenantId = :tenantId AND s.code = :code AND s.deletedAt IS NULL")
     Optional<Supplier> findByTenantIdAndCode(@Param("tenantId") Long tenantId, @Param("code") String code);
+    
+    /**
+     * 根据租户ID和查询条件查找供应商（排除软删除）
+     * 支持按名称模糊查询和按激活状态过滤
+     */
+    @Query(value = "SELECT * FROM suppliers s WHERE s.tenant_id = :tenantId AND s.deleted_at IS NULL " +
+           "AND (:name IS NULL OR s.name LIKE '%' || CAST(:name AS VARCHAR) || '%') " +
+           "AND (:isActive IS NULL OR s.is_active = :isActive) " +
+           "ORDER BY s.created_at DESC", nativeQuery = true)
+    List<Supplier> findByTenantIdWithFilters(@Param("tenantId") Long tenantId, 
+                                           @Param("name") String name, 
+                                           @Param("isActive") Boolean isActive);
 }

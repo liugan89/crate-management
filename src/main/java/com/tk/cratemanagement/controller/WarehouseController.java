@@ -32,7 +32,24 @@ public class WarehouseController {
      * 创建出入库单据
      */
     @PostMapping("/shipment-orders")
-    @Operation(summary = "创建出入库单据", description = "创建新的入库、出库或调整单据")
+    @Operation(summary = "创建出入库单据", 
+               description = "创建新的入库、出库或调整单据。单据编号将根据类型自动生成。",
+               requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                   description = "单据创建请求",
+                   content = @io.swagger.v3.oas.annotations.media.Content(
+                       examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                           name = "入库单据示例",
+                           value = """
+                           {
+                             "type": "INBOUND",
+                             "priority": "NORMAL",
+                             "notes": "供应商A的货物入库",
+                             "expectedDeliveryDate": "2024-01-15T14:30:00"
+                           }
+                           """
+                       )
+                   )
+               ))
     public ResponseEntity<ShipmentOrderDTO> createShipmentOrder(
             @Valid @RequestBody CreateShipmentOrderRequestDTO request,
             Authentication authentication) {
@@ -41,7 +58,7 @@ public class WarehouseController {
         
         ShipmentOrderDTO response = warehouseService.createShipmentOrder(request, tenantId);
         
-        log.info("单据创建成功: orderId={}", response.id());
+        log.info("单据创建成功: orderId={}, orderNumber={}", response.id(), response.orderNumber());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -134,6 +151,76 @@ public class WarehouseController {
         
         log.info("扫码记录添加成功: scanId={}", response.id());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * 更新单据行项
+     */
+    @PutMapping("/shipment-order-items/{itemId}")
+    @Operation(summary = "更新单据行项", description = "更新待处理单据的行项信息")
+    public ResponseEntity<OrderItemDTO> updateOrderItem(
+            @PathVariable Long itemId,
+            @Valid @RequestBody UpdateOrderItemRequestDTO request,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.info("收到更新行项请求: itemId={}, tenantId={}", itemId, tenantId);
+        
+        OrderItemDTO response = warehouseService.updateOrderItem(itemId, request, tenantId);
+        
+        log.info("行项更新成功: itemId={}", itemId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 删除单据行项
+     */
+    @DeleteMapping("/shipment-order-items/{itemId}")
+    @Operation(summary = "删除单据行项", description = "删除待处理单据的行项（会先删除关联的扫码记录）")
+    public ResponseEntity<Void> deleteOrderItem(
+            @PathVariable Long itemId,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.info("收到删除行项请求: itemId={}, tenantId={}", itemId, tenantId);
+        
+        warehouseService.deleteOrderItem(itemId, tenantId);
+        
+        log.info("行项删除成功: itemId={}", itemId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 更新扫码记录
+     */
+    @PutMapping("/scans/{scanId}")
+    @Operation(summary = "更新扫码记录", description = "更新待处理单据的扫码记录")
+    public ResponseEntity<ScanDTO> updateScan(
+            @PathVariable Long scanId,
+            @Valid @RequestBody UpdateScanRequestDTO request,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.info("收到更新扫码记录请求: scanId={}, tenantId={}", scanId, tenantId);
+        
+        ScanDTO response = warehouseService.updateScan(scanId, request, tenantId);
+        
+        log.info("扫码记录更新成功: scanId={}", scanId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 删除扫码记录
+     */
+    @DeleteMapping("/scans/{scanId}")
+    @Operation(summary = "删除扫码记录", description = "删除待处理单据的扫码记录")
+    public ResponseEntity<Void> deleteScan(
+            @PathVariable Long scanId,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.info("收到删除扫码记录请求: scanId={}, tenantId={}", scanId, tenantId);
+        
+        warehouseService.deleteScan(scanId, tenantId);
+        
+        log.info("扫码记录删除成功: scanId={}", scanId);
+        return ResponseEntity.noContent().build();
     }
 
 }

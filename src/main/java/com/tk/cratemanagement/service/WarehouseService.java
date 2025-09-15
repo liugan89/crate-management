@@ -69,4 +69,40 @@ public interface WarehouseService {
      * @return 扫码记录DTO
      */
     ScanDTO addScan(Long itemId, CreateScanRequestDTO request, Long tenantId, Long userId);
+
+    /**
+     * 更新单据行项
+     *
+     * @param itemId 行项ID
+     * @param request 更新请求
+     * @param tenantId 租户ID
+     * @return 更新后的行项DTO
+     */
+    OrderItemDTO updateOrderItem(Long itemId, UpdateOrderItemRequestDTO request, Long tenantId);
+
+    /**
+     * 删除单据行项（会先删除关联的扫码记录）
+     *
+     * @param itemId 行项ID
+     * @param tenantId 租户ID
+     */
+    void deleteOrderItem(Long itemId, Long tenantId);
+
+    /**
+     * 更新扫码记录
+     *
+     * @param scanId 扫码记录ID
+     * @param request 更新请求
+     * @param tenantId 租户ID
+     * @return 更新后的扫码DTO
+     */
+    ScanDTO updateScan(Long scanId, UpdateScanRequestDTO request, Long tenantId);
+
+    /**
+     * 删除扫码记录
+     *
+     * @param scanId 扫码记录ID
+     * @param tenantId 租户ID
+     */
+    void deleteScan(Long scanId, Long tenantId);
 }

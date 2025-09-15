@@ -6,6 +6,7 @@ import java.time.ZonedDateTime;
 
 public record ShipmentOrderSummaryDTO(
     Long id,
+    String orderNumber,
     ShipmentOrderType type,
     ShipmentOrderStatus status,
     ZonedDateTime createdAt,

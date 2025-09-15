@@ -25,4 +25,15 @@ public interface ShipmentOrderItemScanRepository extends JpaRepository<ShipmentO
      * 根据行项ID和周转筐ID查找扫码记录
      */
     Optional<ShipmentOrderItemScan> findByOrderItemIdAndCrateId(Long orderItemId, Long crateId);
+    
+    /**
+     * 根据行项ID查找所有扫码记录
+     */
+    List<ShipmentOrderItemScan> findByOrderItemId(Long orderItemId);
+    
+    /**
+     * 根据扫码ID和租户ID查找扫码记录
+     */
+    @Query("SELECT scan FROM ShipmentOrderItemScan scan WHERE scan.id = :scanId AND scan.orderItem.shipmentOrder.tenantId = :tenantId")
+    Optional<ShipmentOrderItemScan> findByIdAndOrderItemShipmentOrderTenantId(@Param("scanId") Long scanId, @Param("tenantId") Long tenantId);
 }

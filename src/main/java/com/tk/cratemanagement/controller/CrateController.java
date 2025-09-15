@@ -32,6 +32,76 @@ public class CrateController {
     // ========== 周转筐管理 ==========
 
     /**
+     * 批量注册周转筐
+     * 使用独立的路径避免与 {id} 路径冲突
+     */
+    @PostMapping("/batch/crates/register")
+    @Operation(summary = "批量注册周转筐", description = "一次性注册多个周转筐实例，支持详细的成功/失败反馈")
+    public ResponseEntity<BatchRegisterResponseDTO> batchRegisterCrates(
+            @Valid @RequestBody BatchRegisterCratesRequestDTO request,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.info("收到批量注册周转筐请求: 数量={}, tenantId={}", request.crates().size(), tenantId);
+        
+        BatchRegisterResponseDTO response = crateService.batchRegisterCrates(request, tenantId);
+        
+        log.info("批量注册周转筐完成: 总数={}, 成功={}, 失败={}", 
+                response.totalRequested(), response.successCount(), response.failCount());
+        
+        // 根据结果返回不同的HTTP状态码
+        if (response.failCount() == 0) {
+            // 全部成功
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } else if (response.successCount() > 0) {
+            // 部分成功
+            return ResponseEntity.status(HttpStatus.MULTI_STATUS).body(response);
+        } else {
+            // 全部失败
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
+    /**
+     * 批量报废周转筐
+     * 使用独立的路径避免与 {id} 路径冲突
+     */
+    @PutMapping("/batch/crates/deactivate")
+    @Operation(summary = "批量报废周转筐", description = "批量将多个周转筐设置为报废状态（INACTIVE）")
+    public ResponseEntity<BatchDeactivateResponseDTO> batchDeactivateCrates(
+            @Valid @RequestBody BatchDeactivateCratesRequestDTO request,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.info("收到批量报废周转筐请求: crateIds={}, tenantId={}, reason={}", 
+                request.crateIds(), tenantId, request.reason());
+        
+        int successCount = crateService.batchDeactivateCrates(request.crateIds(), tenantId, request.reason());
+        BatchDeactivateResponseDTO response = BatchDeactivateResponseDTO.success(
+                request.crateIds().size(), successCount);
+        
+        log.info("批量报废周转筐完成: 总数={}, 成功={}, 失败={}", 
+                request.crateIds().size(), successCount, request.crateIds().size() - successCount);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 根据NFC UID查询周转筐详情
+     * 高频操作：移动端扫码查询
+     * 使用独立的路径避免与 {id} 路径冲突
+     */
+    @GetMapping("/crates/nfc/lookup")
+    @Operation(summary = "NFC查询周转筐", description = "根据NFC UID查询周转筐详情（高频操作）")
+    public ResponseEntity<CrateDetailsDTO> lookupCrateByNfcUid(
+            @RequestParam @NotBlank String nfc_uid,
+            Authentication authentication) {
+        Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
+        log.debug("NFC查询周转筐: nfcUid={}, tenantId={}", nfc_uid, tenantId);
+        
+        CrateDetailsDTO details = crateService.lookupCrateByNfcUid(nfc_uid, tenantId);
+        
+        return ResponseEntity.ok(details);
+    }
+
+    /**
      * 注册新的周转筐
      */
     @PostMapping("/crates")
@@ -94,20 +164,20 @@ public class CrateController {
     }
 
     /**
-     * 根据NFC UID查询周转筐详情
-     * 高频操作：移动端扫码查询
+     * 报废单个周转筐
      */
-    @GetMapping("/crates/lookup")
-    @Operation(summary = "NFC查询周转筐", description = "根据NFC UID查询周转筐详情（高频操作）")
-    public ResponseEntity<CrateDetailsDTO> lookupCrateByNfcUid(
-            @RequestParam @NotBlank String nfc_uid,
-            Authentication authentication) {
+    @PutMapping("/crates/{id}/deactivate")
+    @Operation(summary = "报废周转筐", description = "将指定周转筐设置为报废状态（INACTIVE）")
+    public ResponseEntity<CrateDTO> deactivateCrate(@PathVariable Long id,
+                                                   @Valid @RequestBody DeactivateCrateRequestDTO request,
+                                                   Authentication authentication) {
         Long tenantId = AuthUtils.getTenantIdFromAuth(authentication);
-        log.debug("NFC查询周转筐: nfcUid={}, tenantId={}", nfc_uid, tenantId);
+        log.info("收到报废周转筐请求: crateId={}, tenantId={}, reason={}", id, tenantId, request.reason());
         
-        CrateDetailsDTO details = crateService.lookupCrateByNfcUid(nfc_uid, tenantId);
+        CrateDTO response = crateService.deactivateCrate(id, tenantId, request.reason());
         
-        return ResponseEntity.ok(details);
+        log.info("周转筐报废成功: crateId={}", id);
+        return ResponseEntity.ok(response);
     }
 
     // ========== 周转筐类型管理 ==========
@@ -174,5 +244,6 @@ public class CrateController {
         log.info("周转筐类型删除成功: typeId={}", id);
         return ResponseEntity.noContent().build();
     }
+
 
 }

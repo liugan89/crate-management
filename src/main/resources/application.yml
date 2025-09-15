@@ -8,7 +8,7 @@ spring:
   
   # 数据库配置
   datasource:
-    url: jdbc:postgresql://localhost:5432/crate_management_db?useSSL=false
+    url: jdbc:postgresql://localhost:5432/crate_management_db?useSSL=false&characterEncoding=utf8&useUnicode=true
     username: postgres
     password: my!69.77o08891
     driver-class-name: org.postgresql.Driver

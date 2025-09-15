@@ -80,6 +80,17 @@ public class MasterDataServiceImpl implements MasterDataService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<GoodsDTO> getGoodsWithFilters(Long tenantId, String name, Boolean isActive) {
+        log.debug("根据条件获取租户货物列表: tenantId={}, name={}, isActive={}", tenantId, name, isActive);
+        
+        List<Goods> goodsList = goodsRepository.findByTenantIdWithFilters(tenantId, name, isActive);
+        return goodsList.stream()
+                .map(this::convertToGoodsDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public GoodsDTO getGoodsById(Long goodsId, Long tenantId) {
         log.debug("获取货物详情: goodsId={}, tenantId={}", goodsId, tenantId);
         
@@ -139,6 +150,7 @@ public class MasterDataServiceImpl implements MasterDataService {
                 .orElseThrow(() -> new IllegalArgumentException("货物不存在"));
 
         // 软删除：设置deleted_at时间戳
+        goods.setIsActive(false);
         goods.setDeletedAt(Instant.now());
         goods.setUpdatedAt(Instant.now());
         
@@ -233,6 +245,17 @@ public class MasterDataServiceImpl implements MasterDataService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<SupplierDTO> getSuppliersWithFilters(Long tenantId, String name, Boolean isActive) {
+        log.debug("根据条件获取租户供应商列表: tenantId={}, name={}, isActive={}", tenantId, name, isActive);
+        
+        List<Supplier> suppliers = supplierRepository.findByTenantIdWithFilters(tenantId, name, isActive);
+        return suppliers.stream()
+                .map(this::convertToSupplierDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public SupplierDTO getSupplierById(Long supplierId, Long tenantId) {
         log.debug("获取供应商详情: supplierId={}, tenantId={}", supplierId, tenantId);
         
@@ -293,6 +316,7 @@ public class MasterDataServiceImpl implements MasterDataService {
                 .orElseThrow(() -> new IllegalArgumentException("供应商不存在"));
 
         // 软删除：设置deleted_at时间戳
+        supplier.setIsActive(false);
         supplier.setDeletedAt(java.time.LocalDateTime.now());
         supplier.setUpdatedAt(java.time.LocalDateTime.now());
         supplierRepository.save(supplier);
@@ -337,6 +361,17 @@ public class MasterDataServiceImpl implements MasterDataService {
         log.debug("获取租户库位列表: tenantId={}", tenantId);
         
         List<Location> locations = locationRepository.findByTenantId(tenantId);
+        return locations.stream()
+                .map(this::convertToLocationDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LocationDTO> getLocationsWithFilters(Long tenantId, String name, Boolean isActive) {
+        log.debug("根据条件获取租户库位列表: tenantId={}, name={}, isActive={}", tenantId, name, isActive);
+        
+        List<Location> locations = locationRepository.findByTenantIdWithFilters(tenantId, name, isActive);
         return locations.stream()
                 .map(this::convertToLocationDTO)
                 .collect(Collectors.toList());
@@ -398,6 +433,7 @@ public class MasterDataServiceImpl implements MasterDataService {
                 .orElseThrow(() -> new IllegalArgumentException("库位不存在"));
 
         // 软删除：设置deleted_at时间戳
+        location.setIsActive(false);
         location.setDeletedAt(java.time.LocalDateTime.now());
         location.setUpdatedAt(java.time.LocalDateTime.now());
         locationRepository.save(location);

@@ -6,6 +6,8 @@ app:
 spring:
   # 生产环境通常关闭详细的SQL日志以提高性能
   jpa:
+    hibernate:
+      ddl-auto: validate  # 生产环境：仅验证表结构，不自动修改数据库
     show-sql: false
 
 logging:
