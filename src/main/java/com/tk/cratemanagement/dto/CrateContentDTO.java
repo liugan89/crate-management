@@ -13,5 +13,6 @@ public record CrateContentDTO(
     CrateContentStatus status,
     Long locationId,
     String locationName,
-    Instant lastUpdatedAt
+    Instant lastUpdatedAt,
+    String batchNumber
 ) {}

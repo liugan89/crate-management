@@ -30,7 +30,7 @@ This document defines the RESTful API endpoints for the backend. All endpoints a
         String fullName; 
         String phone; 
     }`
--   **Response**: `201` with `AuthResponseDTO { String token; }`
+-   **Response**: `201` with `AuthResponseDTO { String token, ... }`
 
 ### `POST /auth/login`
 -   **Description**: Authenticates a user.

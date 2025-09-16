@@ -17,4 +17,9 @@ public interface UsageSnapshotRepository extends JpaRepository<UsageSnapshot, Lo
      * 根据租户ID和快照日期查找用量快照
      */
     Optional<UsageSnapshot> findByTenantIdAndSnapshotDate(Long tenantId, LocalDate snapshotDate);
+    
+    /**
+     * 根据租户ID查找最新的用量快照
+     */
+    Optional<UsageSnapshot> findTopByTenantIdOrderBySnapshotDateDesc(Long tenantId);
 }

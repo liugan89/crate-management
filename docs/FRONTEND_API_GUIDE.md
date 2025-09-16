@@ -56,8 +56,6 @@ const result = await registerResponse.json();
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "userId": 1,
-  "tenantId": 1,
   "role": "ADMIN"
 }
 ```
@@ -674,5 +672,5 @@ try {
 
 ---
 
-**最后更新**: 2025-09-09  
-**版本**: 1.0.0
+**最后更新**: 2025-09-16  
+**版本**: 1.0.1

@@ -7,6 +7,7 @@ import com.tk.cratemanagement.dto.ChangePlanRequestDTO;
 import com.tk.cratemanagement.dto.InvoiceDTO;
 import com.tk.cratemanagement.dto.PlanDTO;
 import com.tk.cratemanagement.dto.SubscriptionDTO;
+import com.tk.cratemanagement.dto.UsageDTO;
 import com.tk.cratemanagement.repository.*;
 import com.tk.cratemanagement.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -157,31 +160,121 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 tenantId, userCount, crateCount);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UsageDTO getTenantUsage(Long tenantId) {
+        log.debug("获取租户用量详情: tenantId={}", tenantId);
+        
+        Subscription subscription = subscriptionRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("订阅不存在"));
+        
+        // 获取当前用量
+        int currentUserCount = userRepository.countByTenantId(tenantId);
+        int currentCrateCount = crateRepository.countByTenantId(tenantId);
+        
+        // 从计划配额中获取限制值
+        Plan plan = subscription.getPlan();
+        int maxUsers = 0;
+        int maxCrates = 0;
+        
+        if (plan.getQuotas() != null && !plan.getQuotas().isEmpty()) {
+            try {
+                Map<String, Object> quotas = objectMapper.readValue(plan.getQuotas(), new TypeReference<Map<String, Object>>() {});
+                maxUsers = (Integer) quotas.getOrDefault("maxUsers", 0);
+                maxCrates = (Integer) quotas.getOrDefault("maxCrates", 0);
+            } catch (Exception e) {
+                log.error("解析计划配额失败: {}", e.getMessage());
+            }
+        }
+        
+        // 计算使用率
+        BigDecimal userUtilizationRate = maxUsers > 0 
+            ? BigDecimal.valueOf(currentUserCount)
+                .divide(BigDecimal.valueOf(maxUsers), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+            : BigDecimal.ZERO;
+            
+        BigDecimal crateUtilizationRate = maxCrates > 0 
+            ? BigDecimal.valueOf(currentCrateCount)
+                .divide(BigDecimal.valueOf(maxCrates), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+            : BigDecimal.ZERO;
+        
+        // 获取最近的用量快照日期
+        LocalDate lastSnapshotDate = usageSnapshotRepository
+                .findTopByTenantIdOrderBySnapshotDateDesc(tenantId)
+                .map(UsageSnapshot::getSnapshotDate)
+                .orElse(null);
+        
+        return new UsageDTO(
+                currentUserCount,
+                currentCrateCount,
+                maxUsers,
+                maxCrates,
+                plan.getName(),
+                lastSnapshotDate,
+                userUtilizationRate,
+                crateUtilizationRate
+        );
+    }
+
     // DTO转换方法
     private SubscriptionDTO convertToSubscriptionDTO(Subscription subscription) {
         // 获取当前用量
         int userCount = userRepository.countByTenantId(subscription.getTenantId());
         int crateCount = crateRepository.countByTenantId(subscription.getTenantId());
         
+        // 从计划配额中获取限制值
+        Plan plan = subscription.getPlan();
+        int maxUsers = 0;
+        int maxCrates = 0;
+        
+        if (plan.getQuotas() != null && !plan.getQuotas().isEmpty()) {
+            try {
+                Map<String, Object> quotas = objectMapper.readValue(plan.getQuotas(), new TypeReference<Map<String, Object>>() {});
+                maxUsers = (Integer) quotas.getOrDefault("maxUsers", 0);
+                maxCrates = (Integer) quotas.getOrDefault("maxCrates", 0);
+            } catch (Exception e) {
+                log.error("解析计划配额失败: {}", e.getMessage());
+                // 如果解析失败，使用默认值
+                maxUsers = 0;
+                maxCrates = 0;
+            }
+        }
+        
         return new SubscriptionDTO(
                 subscription.getPlan().getName(),
                 subscription.getStatus(),
                 userCount,
                 crateCount,
-                100, // maxUsers暂时硬编码
-                1000, // maxCrates暂时硬编码
+                maxUsers,
+                maxCrates,
                 subscription.getCurrentPeriodEnd().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
         );
     }
 
     private PlanDTO convertToPlanDTO(Plan plan) {
+        // 从计划配额中获取限制值
+        int maxUsers = 0;
+        int maxCrates = 0;
+        
+        if (plan.getQuotas() != null && !plan.getQuotas().isEmpty()) {
+            try {
+                Map<String, Object> quotas = objectMapper.readValue(plan.getQuotas(), new TypeReference<Map<String, Object>>() {});
+                maxUsers = (Integer) quotas.getOrDefault("maxUsers", 0);
+                maxCrates = (Integer) quotas.getOrDefault("maxCrates", 0);
+            } catch (Exception e) {
+                log.error("解析计划配额失败: {}", e.getMessage());
+            }
+        }
+        
         return new PlanDTO(
                 plan.getId().longValue(),
                 plan.getName(),
                 plan.getPriceMonthly(),
-                0, // maxUsers暂时设为0
-                0, // maxCrates暂时设为0
-                null // description暂时设为null
+                maxUsers,
+                maxCrates,
+                null // 暂时设为null，等Plan实体添加description字段后再修改
         );
     }
 

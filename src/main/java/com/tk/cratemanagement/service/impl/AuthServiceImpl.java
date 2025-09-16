@@ -121,7 +121,7 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtService.generateToken(adminUser.getId(), tenant.getId(), adminUser.getRole());
 
         log.info("租户注册成功: tenantId={}, userId={}", tenant.getId(), adminUser.getId());
-        return new AuthResponseDTO(token);
+        return new AuthResponseDTO(token, adminUser.getRole().name(), null);
     }
 
     /**
@@ -159,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
             String token = jwtService.generateToken(user.getId(), user.getTenantId(), user.getRole());
 
             log.info("用户登录成功: userId={}, tenantId={}", user.getId(), user.getTenantId());
-            return new AuthResponseDTO(token);
+            return new AuthResponseDTO(token, user.getRole().name(), user.getId());
             
         } catch (Exception e) {
             log.warn("用户登录失败: {}, 原因: {}", request.email(), e.getMessage());

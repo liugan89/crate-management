@@ -4,6 +4,7 @@ import com.tk.cratemanagement.dto.ChangePlanRequestDTO;
 import com.tk.cratemanagement.dto.InvoiceDTO;
 import com.tk.cratemanagement.dto.PlanDTO;
 import com.tk.cratemanagement.dto.SubscriptionDTO;
+import com.tk.cratemanagement.dto.UsageDTO;
 import com.tk.cratemanagement.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -85,6 +86,20 @@ public class SubscriptionController {
         List<InvoiceDTO> invoices = subscriptionService.getInvoiceHistory(tenantId);
         
         return ResponseEntity.ok(invoices);
+    }
+
+    /**
+     * 获取租户的用量详情
+     */
+    @GetMapping("/usage")
+    @Operation(summary = "获取用量详情", description = "获取当前租户的资源使用情况和限额")
+    public ResponseEntity<UsageDTO> getTenantUsage(Authentication authentication) {
+        Long tenantId = getTenantIdFromAuth(authentication);
+        log.debug("获取租户用量详情: tenantId={}", tenantId);
+        
+        UsageDTO usage = subscriptionService.getTenantUsage(tenantId);
+        
+        return ResponseEntity.ok(usage);
     }
 
     /**

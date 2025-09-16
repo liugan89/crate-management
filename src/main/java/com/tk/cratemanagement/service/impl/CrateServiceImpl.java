@@ -397,7 +397,8 @@ public class CrateServiceImpl implements CrateService {
                 content.getStatus(),
                 content.getLocation() != null ? content.getLocation().getId() : null,
                 content.getLocation() != null ? content.getLocation().getName() : null,
-                content.getLastUpdatedAt()
+                content.getLastUpdatedAt(),
+                content.getBatchNumber()
         );
     }
 }

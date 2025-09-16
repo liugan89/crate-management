@@ -4,6 +4,7 @@ import com.tk.cratemanagement.dto.ChangePlanRequestDTO;
 import com.tk.cratemanagement.dto.InvoiceDTO;
 import com.tk.cratemanagement.dto.PlanDTO;
 import com.tk.cratemanagement.dto.SubscriptionDTO;
+import com.tk.cratemanagement.dto.UsageDTO;
 
 import java.util.List;
 
@@ -64,4 +65,13 @@ public interface SubscriptionService {
      * @param tenantId 租户ID
      */
     void recordDailyUsageSnapshot(Long tenantId);
+
+    /**
+     * 获取租户的用量详情
+     * 包含当前使用量、限额和使用率等信息
+     *
+     * @param tenantId 租户ID
+     * @return 用量详情DTO
+     */
+    UsageDTO getTenantUsage(Long tenantId);
 }
